@@ -1,6 +1,60 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sample Experiment for Assistive Elicitation</title><link rel="stylesheet" href="style.css"></head><body><main><h1>Sample Experiment for Assistive Elicitation</h1><div class="workspace"><section class="left"><div id="cur" class="view current"></div><button id="preferCurrent" class="primary">Prefer current room</button></section><section class="right"><div id="interactionArea" class="interaction-area"><div class="modes"><button data-mode="compare" class="active">Choose between current options</button><button data-mode="eval">Evaluate current room</button><button data-mode="replace">Change one aspect</button></div><div id="kctl" class="ctl"><label>Number of newer rooms <select id="k"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label></div><div id="fctl" class="ctl hidden"><label>Aspect <select id="feature"><option value="furniture">Option 1</option><option value="lighting">Option 2</option><option value="wall">Option 3</option><option value="decor">Option 4</option></select></label></div><h2 id="question"></h2><div id="options" class="options"><article id="c0"><div id="v0" class="view opt"></div><button id="b0" class="primary">Prefer</button></article><article id="c1"><div id="v1" class="view opt"></div><button id="b1" class="primary">Prefer</button></article><article id="c2" class="hidden"><div id="v2" class="view opt"></div><button id="b2" class="primary">Prefer</button></article><article id="c3" class="hidden"><div id="v3" class="view opt"></div><button id="b3" class="primary">Prefer</button></article></div><div id="eval" class="eval hidden"><button id="accept" class="primary">Accept</button><button id="reject" class="secondary">Reject</button></div><button id="none" class="secondary full">I do not prefer any option shown on screen.</button><button id="satisfied" class="satisfied full">I am satisfied.</button></div>
-<div id="endScreen" class="end-screen hidden">
-  <h2 id="endMessage"></h2>
-  <button id="restart" class="primary restart">Restart</button>
-</div>
-</section></div><p class="disclaimer">Users will typically not able to choose or see multiple types of queries that the assistant offers. I've structured it this way only for the sample website. For now, the <em>k</em> limit has been set to 4. For now, types of queries are chosen randomly after each response.</p><details><summary>Prototype log</summary><pre id="log"></pre></details></main><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"}}</script><script type="module" src="app.js?v=6"></script></body></html>
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Interior Design Task</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <section id="homePage" class="home-page">
+      <div class="instructions-card">
+        <h1>Interior Design Task</h1>
+        <h2>Instructions</h2>
+        <p>This task is centered around a conversational assistant designed to help you find your most preferred interior design for a room.</p>
+        <p>To begin the interaction, please provide a short description of a design to the assistant.</p>
+        <p>Based on this description, the assistant will initialize a set of options. These will be presented to you as a query. You may proceed to answer these queries as you see fit.</p>
+        <p>After three turns have elapsed, an option to finalize your most recent choice as the design will be available. The number of turns is inconsequential to the task, and we encourage users to be idealistic in the manner they decide to finalize a design. Please choose as you would in real life!</p>
+        <button id="proceed" class="button">Proceed to task</button>
+      </div>
+    </section>
+
+    <section id="taskPage" class="task-page hidden">
+      <header class="task-header">
+        <h1>Interior Design Task</h1>
+        <span id="turnLabel">Turn: 0</span>
+      </header>
+
+      <div id="chat" class="chat">
+        <div class="message assistant-message intro-message">
+          <div class="sender">Assistant</div>
+          <p>Please provide a short description of the room design you would ideally like.</p>
+        </div>
+
+        <div id="initialPrompt" class="prompt-composer">
+          <textarea id="description" rows="3" placeholder="Describe the room you would like..."></textarea>
+          <button id="sendDescription" class="button">Send</button>
+        </div>
+      </div>
+
+      <div id="finalizeBar" class="finalize-bar hidden">
+        <button id="satisfied" class="button">I am satisfied</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="confirmModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal-card">
+      <h2 id="confirmTitle">Are you sure about finalizing this design?</h2>
+      <div class="modal-actions">
+        <button id="cancelFinalize" class="button">No, continue</button>
+        <button id="confirmFinalize" class="button">Yes, finalize</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"}}</script>
+  <script type="module" src="app.js?v=7"></script>
+</body>
+</html>
