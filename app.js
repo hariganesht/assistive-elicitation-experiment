@@ -8,7 +8,7 @@ const LEVELS={
 };
 const FEATURE_LABELS={furniture:"furniture",lighting:"lighting",wall:"walls",decor:"decor"};
 let current=null, completedTurns=0, events=[], ended=false;
-const DESCRIPTION_WORD_LIMIT=20;
+const DESCRIPTION_CHARACTER_LIMIT=150;
 const cp=x=>({...x});
 const key=x=>Object.values(x).join("|");
 const rand=a=>a[Math.floor(Math.random()*a.length)];
@@ -65,17 +65,14 @@ function presentRandomQuery(){if(ended)return;const mode=rand(["compare","eval",
 }
 
 document.querySelector("#proceed").onclick=()=>{document.querySelector("#homePage").classList.add("hidden");document.querySelector("#taskPage").classList.remove("hidden");window.scrollTo(0,0)};
-document.querySelector("#sendDescription").onclick=()=>{const input=document.querySelector("#description"),text=input.value.trim();if(!text)return;const words=text.split(/\s+/).filter(Boolean);if(words.length>DESCRIPTION_WORD_LIMIT){input.setCustomValidity(`Please keep your description to ${DESCRIPTION_WORD_LIMIT} words or fewer.`);input.reportValidity();return;}input.setCustomValidity("");addUserMessage(text);document.querySelector("#initialPrompt").classList.add("hidden");current=randomConfig();log("initial_description",{description:text});setTimeout(()=>{addAssistantMessage("Thank you. I have initialized a room design and will now show you different queries to help you refine it.");presentRandomQuery()},150);scrollBottom()};
+document.querySelector("#sendDescription").onclick=()=>{const input=document.querySelector("#description"),text=input.value.trim();if(!text)return;if(text.length>DESCRIPTION_CHARACTER_LIMIT){input.setCustomValidity(`Please keep your description to ${DESCRIPTION_CHARACTER_LIMIT} characters or fewer.`);input.reportValidity();return;}input.setCustomValidity("");addUserMessage(text);document.querySelector("#initialPrompt").classList.add("hidden");current=randomConfig();log("initial_description",{description:text});setTimeout(()=>{addAssistantMessage("Thank you. I have initialized a room design and will now show you different queries to help you refine it.");presentRandomQuery()},150);scrollBottom()};
 
 const descriptionInput=document.querySelector("#description");
 const descriptionLimit=document.querySelector("#descriptionLimit");
+descriptionInput.maxLength=DESCRIPTION_CHARACTER_LIMIT;
 function updateDescriptionLimit(){
-  const words=descriptionInput.value.trim().split(/\s+/).filter(Boolean);
-  if(words.length>DESCRIPTION_WORD_LIMIT){
-    descriptionInput.value=words.slice(0,DESCRIPTION_WORD_LIMIT).join(" ");
-  }
-  const count=descriptionInput.value.trim()?descriptionInput.value.trim().split(/\s+/).filter(Boolean).length:0;
-  descriptionLimit.textContent=`${count} / ${DESCRIPTION_WORD_LIMIT} words`;
+  const count=descriptionInput.value.length;
+  descriptionLimit.textContent=`${count} / ${DESCRIPTION_CHARACTER_LIMIT} characters`;
 }
 descriptionInput.addEventListener("input",updateDescriptionLimit);
 updateDescriptionLimit();
