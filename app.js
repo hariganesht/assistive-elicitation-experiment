@@ -8,6 +8,7 @@ const LEVELS={
 };
 const FEATURE_LABELS={furniture:"furniture",lighting:"lighting",wall:"walls",decor:"decor"};
 let current=null, completedTurns=0, events=[], ended=false;
+const DESCRIPTION_WORD_LIMIT=20;
 const cp=x=>({...x});
 const key=x=>Object.values(x).join("|");
 const rand=a=>a[Math.floor(Math.random()*a.length)];
@@ -58,13 +59,27 @@ function presentRandomQuery(){if(ended)return;const mode=rand(["compare","eval",
   } else if(mode==="eval"){
     q.innerHTML="<h3>Do you prefer this room as it is?</h3>";const actions=document.createElement("div");actions.className="eval-actions";for(const [label,text] of [["Yes","Yes, I prefer this room."],["No","No, I do not prefer this room."]]){const b=document.createElement("button");b.className="button";b.textContent=label;b.onclick=()=>finishTurn(text,label==="Yes"?current:null);actions.appendChild(b)}q.appendChild(actions);log("query",{mode});
   } else {
-    const feature=rand(Object.keys(LEVELS));const alternatives=LEVELS[feature].filter(v=>v!==current[feature]);const value=rand(alternatives);const candidate={...current,[feature]:value};q.innerHTML=`<h3>Would you prefer to change the ${FEATURE_LABELS[feature]}?</h3>`;const grid=document.createElement("div");grid.className="query-options one";q.appendChild(grid);grid.appendChild(optionCard(candidate,"Proposed change",()=>finishTurn(`Yes, change the ${FEATURE_LABELS[feature]}.`,candidate)));const actions=document.createElement("div");actions.className="query-actions";const no=document.createElement("button");no.className="button";no.textContent="Keep current";no.onclick=()=>finishTurn(`No, keep the current ${FEATURE_LABELS[feature]}.`,current);actions.appendChild(no);q.appendChild(actions);log("query",{mode,feature,candidate:cp(candidate)});
+    const feature=rand(Object.keys(LEVELS));const alternatives=LEVELS[feature].filter(v=>v!==current[feature]);const value=rand(alternatives);const candidate={...current,[feature]:value};q.innerHTML=`<h3>Would you prefer to change the ${FEATURE_LABELS[feature]}?</h3>`;const change=document.createElement("div");change.className="single-change";const r=roomHTML("Proposed change");change.appendChild(r.wrap);const actions=document.createElement("div");actions.className="change-actions";const prefer=document.createElement("button");prefer.className="button";prefer.textContent="Prefer";prefer.onclick=()=>finishTurn(`Yes, change the ${FEATURE_LABELS[feature]}.`,candidate);const no=document.createElement("button");no.className="button";no.textContent="Keep current";no.onclick=()=>finishTurn(`No, keep the current ${FEATURE_LABELS[feature]}.`,current);actions.append(prefer,no);change.appendChild(actions);q.appendChild(change);new Room(r.view,candidate);log("query",{mode,feature,candidate:cp(candidate)});
   }
   scrollBottom();
 }
 
 document.querySelector("#proceed").onclick=()=>{document.querySelector("#homePage").classList.add("hidden");document.querySelector("#taskPage").classList.remove("hidden");window.scrollTo(0,0)};
-document.querySelector("#sendDescription").onclick=()=>{const input=document.querySelector("#description"),text=input.value.trim();if(!text)return;addUserMessage(text);document.querySelector("#initialPrompt").classList.add("hidden");current=randomConfig();log("initial_description",{description:text});setTimeout(()=>{addAssistantMessage("Thank you. I have initialized a room design and will now show you different queries to help you refine it.");presentRandomQuery()},150);scrollBottom()};
+document.querySelector("#sendDescription").onclick=()=>{const input=document.querySelector("#description"),text=input.value.trim();if(!text)return;const words=text.split(/\s+/).filter(Boolean);if(words.length>DESCRIPTION_WORD_LIMIT){input.setCustomValidity(`Please keep your description to ${DESCRIPTION_WORD_LIMIT} words or fewer.`);input.reportValidity();return;}input.setCustomValidity("");addUserMessage(text);document.querySelector("#initialPrompt").classList.add("hidden");current=randomConfig();log("initial_description",{description:text});setTimeout(()=>{addAssistantMessage("Thank you. I have initialized a room design and will now show you different queries to help you refine it.");presentRandomQuery()},150);scrollBottom()};
+
+const descriptionInput=document.querySelector("#description");
+const descriptionLimit=document.querySelector("#descriptionLimit");
+function updateDescriptionLimit(){
+  const words=descriptionInput.value.trim().split(/\s+/).filter(Boolean);
+  if(words.length>DESCRIPTION_WORD_LIMIT){
+    descriptionInput.value=words.slice(0,DESCRIPTION_WORD_LIMIT).join(" ");
+  }
+  const count=descriptionInput.value.trim()?descriptionInput.value.trim().split(/\s+/).filter(Boolean).length:0;
+  descriptionLimit.textContent=`${count} / ${DESCRIPTION_WORD_LIMIT} words`;
+}
+descriptionInput.addEventListener("input",updateDescriptionLimit);
+updateDescriptionLimit();
+
 document.querySelector("#description").addEventListener("keydown",e=>{if((e.metaKey||e.ctrlKey)&&e.key==="Enter")document.querySelector("#sendDescription").click()});
 document.querySelector("#satisfied").onclick=()=>document.querySelector("#confirmModal").classList.remove("hidden");
 document.querySelector("#cancelFinalize").onclick=()=>document.querySelector("#confirmModal").classList.add("hidden");
