@@ -52,6 +52,69 @@ function scrollBottom(){setTimeout(()=>window.scrollTo({top:document.body.scroll
 function updateTurn(){document.querySelector("#turnLabel").textContent=`Turn: ${completedTurns}`;document.querySelector("#finalizeBar").classList.toggle("hidden",completedTurns<3||ended)}
 function finishTurn(action,selected=null){log(action,{selected:selected&&cp(selected)});if(selected)current=cp(selected);completedTurns++;updateTurn();addUserMessage(action);setTimeout(()=>presentRandomQuery(),120);scrollBottom()}
 function optionCard(config,label,onChoose){const card=document.createElement("div");card.className="option-card";const r=roomHTML(label);card.appendChild(r.wrap);const b=document.createElement("button");b.className="button";b.textContent="Prefer";b.onclick=onChoose;card.appendChild(b);new Room(r.view,config);return card}
+
+function featurePreview(feature,value,label){
+  const card=document.createElement("div");
+  card.className="feature-card";
+
+  const title=document.createElement("div");
+  title.className="feature-label";
+  title.textContent=label;
+  card.appendChild(title);
+
+  const preview=document.createElement("div");
+  preview.className=`feature-preview feature-${feature}`;
+  card.appendChild(preview);
+
+  if(feature==="wall"){
+    preview.classList.add(`wall-${value}`);
+
+    const wall=document.createElement("div");
+    wall.className="wall-sample";
+    preview.appendChild(wall);
+
+  } else {
+    const config={
+      furniture:"connected-l",
+      lighting:"bright-overhead",
+      wall:"neutral",
+      decor:"photo-frames"
+    };
+
+    config[feature]=value;
+
+    const room=new Room(preview,config);
+
+    // Hide everything except the feature being queried.
+    room.fixed.visible=false;
+    room.furn.visible=feature==="furniture";
+    room.fx.visible=false;
+    room.dec.visible=feature==="decor";
+    room.lit.visible=feature==="lighting";
+
+    // Move the camera slightly closer for isolated objects.
+    if(feature==="furniture"){
+      room.cam.position.set(0,3.2,10);
+      room.cam.lookAt(0,1,-.5);
+    }
+
+    if(feature==="decor"){
+      room.cam.position.set(0,3.1,7.5);
+      room.cam.lookAt(0,3,-4.5);
+    }
+
+    if(feature==="lighting"){
+      room.cam.position.set(0,3.8,9);
+      room.cam.lookAt(0,4,-.3);
+    }
+
+    room.cam.updateProjectionMatrix();
+  }
+
+  return card;
+}
+
+
 function presentRandomQuery(){
   if(ended)return;
 
@@ -61,33 +124,36 @@ function presentRandomQuery(){
   msg.className="message assistant-message query-message";
   msg.innerHTML=`<div class="sender">Assistant</div>`;
 
-  const layout=document.createElement("div");
-  layout.className="query-layout";
-  msg.appendChild(layout);
-
-  // Current room: always shown on the left
-  const currentPanel=document.createElement("div");
-  currentPanel.className="current-room-panel";
-
-  const currentTitle=document.createElement("div");
-  currentTitle.className="panel-label";
-  currentTitle.textContent="Current room";
-  currentPanel.appendChild(currentTitle);
-
-  const currentView=roomHTML();
-  currentPanel.appendChild(currentView.wrap);
-  new Room(currentView.view,current);
-
-  layout.appendChild(currentPanel);
-
-  // Query: shown on the right
-  const q=document.createElement("div");
-  q.className="query-card";
-  layout.appendChild(q);
-
   document.querySelector("#chat").appendChild(msg);
 
+  // ==========================================================
+  // COMPLETE-ROOM COMPARISON
+  // ==========================================================
+
   if(mode==="compare"){
+
+    const layout=document.createElement("div");
+    layout.className="query-layout";
+    msg.appendChild(layout);
+
+    const currentPanel=document.createElement("div");
+    currentPanel.className="current-room-panel";
+
+    const currentTitle=document.createElement("div");
+    currentTitle.className="panel-label";
+    currentTitle.textContent="Current room";
+    currentPanel.appendChild(currentTitle);
+
+    const currentView=roomHTML();
+    currentPanel.appendChild(currentView.wrap);
+    new Room(currentView.view,current);
+
+    layout.appendChild(currentPanel);
+
+    const q=document.createElement("div");
+    q.className="query-card";
+    layout.appendChild(q);
+
     const k=1+Math.floor(Math.random()*4);
     const candidates=[];
 
@@ -140,7 +206,33 @@ function presentRandomQuery(){
       candidates:candidates.map(cp)
     });
 
+  // ==========================================================
+  // CURRENT-ROOM EVALUATION
+  // ==========================================================
+
   } else if(mode==="eval"){
+
+    const layout=document.createElement("div");
+    layout.className="query-layout";
+    msg.appendChild(layout);
+
+    const currentPanel=document.createElement("div");
+    currentPanel.className="current-room-panel";
+
+    const currentTitle=document.createElement("div");
+    currentTitle.className="panel-label";
+    currentTitle.textContent="Current room";
+    currentPanel.appendChild(currentTitle);
+
+    const currentView=roomHTML();
+    currentPanel.appendChild(currentView.wrap);
+    new Room(currentView.view,current);
+
+    layout.appendChild(currentPanel);
+
+    const q=document.createElement("div");
+    q.className="query-card";
+    layout.appendChild(q);
 
     q.innerHTML="<h3>Do you prefer your current room as it is?</h3>";
 
@@ -164,67 +256,85 @@ function presentRandomQuery(){
     }
 
     q.appendChild(actions);
+
     log("query",{mode});
+
+  // ==========================================================
+  // FEATURE QUERY
+  // ==========================================================
 
   } else {
 
     const feature=rand(Object.keys(LEVELS));
 
-    const values=LEVELS[feature].filter(
+    const alternatives=LEVELS[feature].filter(
       value=>value!==current[feature]
     );
 
+    // Exactly ONE replacement value.
+    const replacement=rand(alternatives);
+
+    const candidate={
+      ...current,
+      [feature]:replacement
+    };
+
+    const q=document.createElement("div");
+    q.className="query-card feature-query-card";
+    msg.appendChild(q);
+
     q.innerHTML=`
       <h3>Would you prefer to change the ${FEATURE_LABELS[feature]}?</h3>
-      <p class="query-help">
-        Select the value you would prefer, or keep the current ${FEATURE_LABELS[feature]}.
-      </p>
     `;
 
-    const grid=document.createElement("div");
-    grid.className=`query-options feature-options ${
-      values.length===3?"three":""
-    }`;
+    const comparison=document.createElement("div");
+    comparison.className="feature-comparison";
+    q.appendChild(comparison);
 
-    q.appendChild(grid);
+    comparison.appendChild(
+      featurePreview(
+        feature,
+        current[feature],
+        `Current ${FEATURE_LABELS[feature]}`
+      )
+    );
 
-    values.forEach((value,i)=>{
-      const candidate={
-        ...current,
-        [feature]:value
-      };
-
-      const card=optionCard(
-        candidate,
-        `${FEATURE_LABELS[feature]} option ${i+1}`,
-        ()=>finishTurn(
-          `Change ${FEATURE_LABELS[feature]} to ${value}.`,
-          candidate
-        )
-      );
-
-      grid.appendChild(card);
-    });
+    comparison.appendChild(
+      featurePreview(
+        feature,
+        replacement,
+        `Alternative ${FEATURE_LABELS[feature]}`
+      )
+    );
 
     const actions=document.createElement("div");
-    actions.className="query-actions";
+    actions.className="feature-actions";
 
     const keep=document.createElement("button");
     keep.className="button";
-    keep.textContent=`Keep current ${FEATURE_LABELS[feature]}`;
-
+    keep.textContent="Keep current";
     keep.onclick=()=>finishTurn(
       `Keep the current ${FEATURE_LABELS[feature]}.`,
       current
     );
 
-    actions.appendChild(keep);
+    const prefer=document.createElement("button");
+    prefer.className="button";
+    prefer.textContent="Prefer alternative";
+    prefer.onclick=()=>finishTurn(
+      `Change the ${FEATURE_LABELS[feature]} to ${replacement}.`,
+      candidate
+    );
+
+    actions.append(keep,prefer);
     q.appendChild(actions);
 
     log("query",{
       mode,
       feature,
-      alternatives:values
+      currentValue:current[feature],
+      replacement,
+      candidate:cp(candidate)
     });
   }
 
