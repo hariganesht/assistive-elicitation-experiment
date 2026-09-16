@@ -12,3 +12,106 @@ h1,h2,p{margin-top:0}.button{width:180px;height:44px;border:1px solid #222;backg
 .finalize-bar{position:fixed;bottom:0;left:0;right:0;background:rgba(245,243,238,.96);border-top:1px solid var(--line);padding:14px 22px;z-index:5;text-align:center}.finalize-bar .button{width:180px}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;padding:22px;z-index:20}.modal-card{width:min(520px,100%);background:#fff;border-radius:14px;border:1px solid var(--line);padding:28px;text-align:center}.modal-card h2{font-size:20px;margin-bottom:22px}.modal-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}.final-message{font-size:18px}.final-room{margin-top:14px}
 @media(max-width:760px){main{padding:18px 12px}.instructions-card{padding:28px 22px}.prompt-composer{width:100%;flex-direction:column;align-items:stretch}.prompt-composer .button{flex:auto;width:100%}.message{max-width:100%}.user-message{max-width:88%}.query-options,.query-options.three,.query-options.four{grid-template-columns:1fr}.query-actions .button,.eval-actions .button{width:100%}}
+
+
+/* ==========================================================
+   Compact side-by-side query layout
+   ========================================================== */
+
+.query-message{
+  width:100%;
+  max-width:100%;
+}
+
+.query-layout{
+  display:grid;
+  grid-template-columns:minmax(300px,.9fr) minmax(420px,1.35fr);
+  gap:18px;
+  align-items:start;
+}
+
+.current-room-panel{
+  min-width:0;
+}
+
+.panel-label{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--muted);
+  font-weight:700;
+  margin-bottom:8px;
+}
+
+.query-layout .room-block{
+  margin-top:0;
+}
+
+.query-layout .current-room-panel .room-view{
+  aspect-ratio:16/10;
+}
+
+.query-layout .query-card{
+  margin-top:0;
+  padding:14px;
+}
+
+.query-layout .query-card h3{
+  margin:0 0 10px;
+  line-height:1.35;
+}
+
+.query-help{
+  margin:0 0 12px;
+  color:var(--muted);
+  font-size:13px;
+}
+
+.query-layout .query-options{
+  gap:10px;
+}
+
+.query-layout .option-card .room-view{
+  aspect-ratio:16/10;
+}
+
+.query-layout .option-card .button{
+  height:40px;
+}
+
+.feature-options .option-card .button{
+  margin-top:6px;
+}
+
+.query-layout .query-actions,
+.query-layout .eval-actions{
+  margin-top:10px;
+}
+
+.query-layout .query-actions .button,
+.query-layout .eval-actions .button{
+  width:180px;
+}
+
+@media(max-width:900px){
+  .query-layout{
+    grid-template-columns:1fr;
+  }
+
+  .query-layout .current-room-panel .room-view{
+    aspect-ratio:16/9;
+  }
+}
+
+@media(max-width:760px){
+  .query-layout .query-options,
+  .query-layout .query-options.three,
+  .query-layout .query-options.four{
+    grid-template-columns:1fr;
+  }
+
+  .query-layout .query-actions .button,
+  .query-layout .eval-actions .button{
+    width:100%;
+  }
+}

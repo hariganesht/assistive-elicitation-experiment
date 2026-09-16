@@ -52,15 +52,182 @@ function scrollBottom(){setTimeout(()=>window.scrollTo({top:document.body.scroll
 function updateTurn(){document.querySelector("#turnLabel").textContent=`Turn: ${completedTurns}`;document.querySelector("#finalizeBar").classList.toggle("hidden",completedTurns<3||ended)}
 function finishTurn(action,selected=null){log(action,{selected:selected&&cp(selected)});if(selected)current=cp(selected);completedTurns++;updateTurn();addUserMessage(action);setTimeout(()=>presentRandomQuery(),120);scrollBottom()}
 function optionCard(config,label,onChoose){const card=document.createElement("div");card.className="option-card";const r=roomHTML(label);card.appendChild(r.wrap);const b=document.createElement("button");b.className="button";b.textContent="Prefer";b.onclick=onChoose;card.appendChild(b);new Room(r.view,config);return card}
-function presentRandomQuery(){if(ended)return;const mode=rand(["compare","eval","replace"]);const msg=addAssistantMessage("Here is your current room configuration.",current);const q=document.createElement("div");q.className="query-card";msg.appendChild(q);
+function presentRandomQuery(){
+  if(ended)return;
+
+  const mode=rand(["compare","eval","replace"]);
+
+  const msg=document.createElement("div");
+  msg.className="message assistant-message query-message";
+  msg.innerHTML=`<div class="sender">Assistant</div>`;
+
+  const layout=document.createElement("div");
+  layout.className="query-layout";
+  msg.appendChild(layout);
+
+  // Current room: always shown on the left
+  const currentPanel=document.createElement("div");
+  currentPanel.className="current-room-panel";
+
+  const currentTitle=document.createElement("div");
+  currentTitle.className="panel-label";
+  currentTitle.textContent="Current room";
+  currentPanel.appendChild(currentTitle);
+
+  const currentView=roomHTML();
+  currentPanel.appendChild(currentView.wrap);
+  new Room(currentView.view,current);
+
+  layout.appendChild(currentPanel);
+
+  // Query: shown on the right
+  const q=document.createElement("div");
+  q.className="query-card";
+  layout.appendChild(q);
+
+  document.querySelector("#chat").appendChild(msg);
+
   if(mode==="compare"){
-    const k=1+Math.floor(Math.random()*4),candidates=[];while(candidates.length<k)candidates.push(randomConfig([current,...candidates]));
-    q.innerHTML=`<h3>Do you prefer one of these ${k} room${k===1?"":"s"}, or your current room?</h3>`;const grid=document.createElement("div");grid.className=`query-options ${k===1?"one":k===3?"three":k===4?"four":""}`;q.appendChild(grid);candidates.forEach((c,i)=>grid.appendChild(optionCard(c,`Option ${i+1}`,()=>finishTurn(`I prefer option ${i+1}.`,c))));const actions=document.createElement("div");actions.className="query-actions";const cur=document.createElement("button");cur.className="button";cur.textContent="Prefer current room";cur.onclick=()=>finishTurn("I prefer the current room.",current);const none=document.createElement("button");none.className="button";none.textContent="None of these";none.onclick=()=>finishTurn("I do not prefer any option shown.",null);actions.append(cur,none);q.appendChild(actions);log("query",{mode,k,candidates:candidates.map(cp)});
+    const k=1+Math.floor(Math.random()*4);
+    const candidates=[];
+
+    while(candidates.length<k){
+      candidates.push(randomConfig([current,...candidates]));
+    }
+
+    q.innerHTML=`<h3>${
+      k===1
+        ?"Do you prefer this option over your current room?"
+        :"Do you prefer any of these options over your current room?"
+    }</h3>`;
+
+    const grid=document.createElement("div");
+    grid.className=`query-options ${
+      k===1?"one":
+      k===3?"three":
+      k===4?"four":""
+    }`;
+
+    q.appendChild(grid);
+
+    candidates.forEach((c,i)=>{
+      grid.appendChild(
+        optionCard(
+          c,
+          `Option ${i+1}`,
+          ()=>finishTurn(`I prefer option ${i+1}.`,c)
+        )
+      );
+    });
+
+    const actions=document.createElement("div");
+    actions.className="query-actions";
+
+    const cur=document.createElement("button");
+    cur.className="button";
+    cur.textContent="Prefer current room";
+    cur.onclick=()=>finishTurn(
+      "I prefer the current room.",
+      current
+    );
+
+    actions.appendChild(cur);
+    q.appendChild(actions);
+
+    log("query",{
+      mode,
+      k,
+      candidates:candidates.map(cp)
+    });
+
   } else if(mode==="eval"){
-    q.innerHTML="<h3>Do you prefer this room as it is?</h3>";const actions=document.createElement("div");actions.className="eval-actions";for(const [label,text] of [["Yes","Yes, I prefer this room."],["No","No, I do not prefer this room."]]){const b=document.createElement("button");b.className="button";b.textContent=label;b.onclick=()=>finishTurn(text,label==="Yes"?current:null);actions.appendChild(b)}q.appendChild(actions);log("query",{mode});
+
+    q.innerHTML="<h3>Do you prefer your current room as it is?</h3>";
+
+    const actions=document.createElement("div");
+    actions.className="eval-actions";
+
+    for(const [label,text] of [
+      ["Yes","Yes, I prefer this room."],
+      ["No","No, I do not prefer this room."]
+    ]){
+      const b=document.createElement("button");
+      b.className="button";
+      b.textContent=label;
+
+      b.onclick=()=>finishTurn(
+        text,
+        label==="Yes"?current:null
+      );
+
+      actions.appendChild(b);
+    }
+
+    q.appendChild(actions);
+    log("query",{mode});
+
   } else {
-    const feature=rand(Object.keys(LEVELS));const alternatives=LEVELS[feature].filter(v=>v!==current[feature]);const value=rand(alternatives);const candidate={...current,[feature]:value};q.innerHTML=`<h3>Would you prefer to change the ${FEATURE_LABELS[feature]}?</h3>`;const change=document.createElement("div");change.className="single-change";const r=roomHTML("Proposed change");change.appendChild(r.wrap);const actions=document.createElement("div");actions.className="change-actions";const prefer=document.createElement("button");prefer.className="button";prefer.textContent="Prefer";prefer.onclick=()=>finishTurn(`Yes, change the ${FEATURE_LABELS[feature]}.`,candidate);const no=document.createElement("button");no.className="button";no.textContent="Keep current";no.onclick=()=>finishTurn(`No, keep the current ${FEATURE_LABELS[feature]}.`,current);actions.append(prefer,no);change.appendChild(actions);q.appendChild(change);new Room(r.view,candidate);log("query",{mode,feature,candidate:cp(candidate)});
+
+    const feature=rand(Object.keys(LEVELS));
+
+    const values=LEVELS[feature].filter(
+      value=>value!==current[feature]
+    );
+
+    q.innerHTML=`
+      <h3>Would you prefer to change the ${FEATURE_LABELS[feature]}?</h3>
+      <p class="query-help">
+        Select the value you would prefer, or keep the current ${FEATURE_LABELS[feature]}.
+      </p>
+    `;
+
+    const grid=document.createElement("div");
+    grid.className=`query-options feature-options ${
+      values.length===3?"three":""
+    }`;
+
+    q.appendChild(grid);
+
+    values.forEach((value,i)=>{
+      const candidate={
+        ...current,
+        [feature]:value
+      };
+
+      const card=optionCard(
+        candidate,
+        `${FEATURE_LABELS[feature]} option ${i+1}`,
+        ()=>finishTurn(
+          `Change ${FEATURE_LABELS[feature]} to ${value}.`,
+          candidate
+        )
+      );
+
+      grid.appendChild(card);
+    });
+
+    const actions=document.createElement("div");
+    actions.className="query-actions";
+
+    const keep=document.createElement("button");
+    keep.className="button";
+    keep.textContent=`Keep current ${FEATURE_LABELS[feature]}`;
+
+    keep.onclick=()=>finishTurn(
+      `Keep the current ${FEATURE_LABELS[feature]}.`,
+      current
+    );
+
+    actions.appendChild(keep);
+    q.appendChild(actions);
+
+    log("query",{
+      mode,
+      feature,
+      alternatives:values
+    });
   }
+
   scrollBottom();
 }
 
