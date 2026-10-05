@@ -1,0 +1,37 @@
+/* Study 1 additions. Colours and buttons come from style.css. */
+.progress{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin-bottom:22px}
+.progress-fill{height:100%;width:0;background:var(--ink);transition:width .25s}
+.screen{display:flex;justify-content:center}
+.card{width:min(820px,100%);background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:34px 38px;line-height:1.6}
+.card h1{font-size:26px;margin-bottom:18px}
+.card h2{font-size:19px;margin-bottom:14px}
+.card p{margin-bottom:14px}
+.card .step{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin-bottom:10px}
+.card .actions{display:flex;justify-content:flex-end;align-items:center;gap:14px;margin-top:26px}
+.card .hint{font-size:13px;color:var(--muted)}
+.card .error{font-size:13px;color:#a33a2b;min-height:1.2em}
+
+.room-view{width:100%;aspect-ratio:16/9;background:#e7e3dc;border-radius:10px;overflow:hidden;margin:6px 0 18px}
+.room-view canvas{width:100%!important;height:100%!important;display:block}
+
+.description{list-style:none;margin:6px 0 22px;padding:16px 20px;background:var(--assistant);border:1px solid #dfdcd5;border-radius:10px}
+.description li{display:flex;gap:14px;padding:5px 0}
+.description .feature{flex:0 0 96px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;padding-top:3px}
+.option-name{font-size:19px;font-weight:600;margin-bottom:4px}
+
+/* Sliders: the handle only appears once the participant has clicked on the line,
+   so there is no starting position to anchor on. */
+.slider{margin:18px 0 22px}
+.slider .question{font-weight:600;margin-bottom:10px}
+.slider .ends{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:6px}
+.slider input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;cursor:pointer;margin:0}
+.slider input[type=range]::-webkit-slider-runnable-track{height:6px;background:#cfccc4;border-radius:3px}
+.slider input[type=range]::-moz-range-track{height:6px;background:#cfccc4;border-radius:3px}
+.slider input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:#1f211e;border:2px solid #fff;box-shadow:0 0 0 1px #1f211e;margin-top:-8px}
+.slider input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:#1f211e;border:2px solid #fff;box-shadow:0 0 0 1px #1f211e}
+.slider.untouched input[type=range]::-webkit-slider-thumb{opacity:0}
+.slider.untouched input[type=range]::-moz-range-thumb{opacity:0}
+.slider.untouched .question::after{content:"  (click on the line)";font-weight:400;font-size:13px;color:var(--muted)}
+
+textarea.comments{width:100%;min-height:110px;border:1px solid var(--line);border-radius:10px;padding:12px 13px;font:inherit;color:var(--ink)}
+@media(max-width:760px){.card{padding:24px 18px}.description .feature{flex-basis:78px}}
