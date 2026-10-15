@@ -53,3 +53,58 @@ textarea.comments{width:100%;min-height:110px;border:1px solid var(--line);borde
 .option-grid .room-view{margin:4px 0 4px}
 .option-grid .option-name{font-size:15px}
 @media(max-width:760px){.option-grid{grid-template-columns:1fr}}
+
+/* Queries with two or four rooms (15 Oct). */
+.pair-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.pair-cell,.variant{min-width:0}
+.pair-cell .description{margin-bottom:8px}
+.room-label{font-weight:700;margin:4px 0 6px}
+.variant{border-top:1px solid var(--line);padding-top:10px}
+.option-grid .variant{border-top:0;padding-top:0}
+.variant .range{margin:6px 0 12px}
+.choices.pick{margin-top:10px;padding:14px 16px;border:1px solid var(--line);border-radius:10px}
+.choices.pick label{display:inline-block;margin-right:18px}
+@media(max-width:760px){.pair-grid{grid-template-columns:1fr}}
+
+/* The simulated person's answer, drawn under the slider in viz mode. */
+.range .ghost{position:absolute;top:20px;height:6px;background:#2a78d6;opacity:.45;border-radius:3px;pointer-events:none}
+.range .ghost-text{font-size:12px;color:#2a78d6}
+
+/* ?viz=1: the task on the left, the simulated person on the right. */
+:root{--vz-belief:#2a78d6;--vz-belief-soft:#2a78d626;--vz-truth:#eb6834;--vz-rank:#d9822b;--vz-cell:#ecebe6}
+body.viz main{width:min(1560px,100%)}
+body.viz .layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+body.viz .card{width:100%;padding:24px 26px}
+body.viz .room-view{aspect-ratio:16/8}
+.viz-panel{position:sticky;top:0;max-height:100vh;overflow:auto;display:grid;gap:12px;padding:0 2px 24px;font-size:13px;line-height:1.45}
+.vz-head{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:8px}
+.vz-eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.vz-sub{margin:0;color:var(--muted)}
+.vz-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.vz-field{display:grid;gap:3px;font-size:12px;color:var(--muted)}
+.vz-field select,.vz-slider select{font:inherit;font-size:13px;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 6px;background:#fff}
+.vz-btn{font:inherit;font-weight:600;border:1px solid var(--ink);background:#fff;border-radius:7px;padding:6px 12px;cursor:pointer}
+.vz-check{display:flex;gap:8px;align-items:center;cursor:pointer}
+.vz-details summary{cursor:pointer;color:var(--muted)}
+.vz-params{display:grid;gap:6px;margin-top:8px}
+.vz-slider{display:grid;grid-template-columns:130px minmax(0,1fr) 40px;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+.vz-slider output{font-variant-numeric:tabular-nums;text-align:right;color:var(--ink)}
+.vz-status{background:var(--assistant);border:1px solid #dfdcd5;border-radius:12px;padding:12px 14px;font-variant-numeric:tabular-nums}
+.vz-chart{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px 10px;min-width:0}
+.vz-chart h3{margin:0;font-size:15px}
+.vz-note{margin:2px 0 8px;color:var(--muted);font-size:12px}
+.vz-chart svg{width:100%;height:auto;display:block;overflow:visible}
+.vz-ax{fill:var(--muted);font:10.5px ui-monospace,SFMono-Regular,Menlo,monospace}
+.vz-lab{fill:var(--muted);font:11px system-ui,sans-serif}
+.vz-nbgrid{display:grid;grid-template-columns:70px repeat(3,minmax(0,1fr));gap:6px;align-items:center}
+.vz-flab{font-size:10px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.vz-mini{border:1px solid var(--line);border-radius:8px;padding:4px 6px 3px;min-width:0}
+.vz-mini.wide{grid-column:2/-1}
+.vz-mini.on{border-color:var(--vz-belief);box-shadow:inset 0 0 0 1px var(--vz-belief)}
+.vz-mname{font-size:11px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vz-num{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.vz-mini svg{width:100%;height:auto;display:block}
+.vz-axisnote{grid-column:2/-1}
+.vz-tip{position:fixed;pointer-events:none;background:var(--ink);color:#fff;font:12px/1.4 ui-monospace,Menlo,monospace;padding:6px 8px;border-radius:6px;z-index:30;max-width:270px}
+@media(max-width:1000px){body.viz .layout{grid-template-columns:1fr}.viz-panel{position:static;max-height:none}}
+.viz-panel[hidden]{display:none}
