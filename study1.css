@@ -19,62 +19,58 @@
 .description .feature{flex:0 0 96px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;padding-top:3px}
 .option-name{font-size:19px;font-weight:600;margin-bottom:4px}
 
-/* Sliders: the handle only appears once the participant has clicked on the line,
-   so there is no starting position to anchor on. */
-.slider{margin:18px 0 22px}
-.slider .question{font-weight:600;margin-bottom:10px}
-.slider .ends{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:6px}
-.slider input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;cursor:pointer;margin:0}
-.slider input[type=range]::-webkit-slider-runnable-track{height:6px;background:#cfccc4;border-radius:3px}
-.slider input[type=range]::-moz-range-track{height:6px;background:#cfccc4;border-radius:3px}
-.slider input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:#1f211e;border:2px solid #fff;box-shadow:0 0 0 1px #1f211e;margin-top:-8px}
-.slider input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:#1f211e;border:2px solid #fff;box-shadow:0 0 0 1px #1f211e}
-.slider.untouched input[type=range]::-webkit-slider-thumb{opacity:0}
-.slider.untouched input[type=range]::-moz-range-thumb{opacity:0}
-.slider.untouched .question::after{content:"  (click on the line)";font-weight:400;font-size:13px;color:var(--muted)}
-
 textarea.comments{width:100%;min-height:110px;border:1px solid var(--line);border-radius:10px;padding:12px 13px;font:inherit;color:var(--ink)}
 @media(max-width:760px){.card{padding:24px 18px}.description .feature{flex-basis:78px}}
 
-/* Two-handle range slider (6 Oct): lowest and highest on one visible 0-100 scale. */
-.range{margin:18px 0 22px}
+/* Range slider (21 Oct): lowest and highest on one -50..+50 line. Press and drag sets the range;
+   the handles appear only once the participant has pressed, so there is no starting position to anchor on. */
+.range{margin:14px 0 18px}
 .range .question{font-weight:600;margin-bottom:12px}
-.range .track{position:relative;height:28px;cursor:pointer}
-.range .track::before{content:"";position:absolute;left:0;right:0;top:11px;height:6px;background:#cfccc4;border-radius:3px}
-.range .fill{position:absolute;top:11px;height:6px;background:#1f211e;border-radius:3px}
-.range input[type=range]{position:absolute;inset:0;width:100%;height:28px;margin:0;-webkit-appearance:none;appearance:none;background:transparent;pointer-events:none}
+.range .track{position:relative;height:30px;cursor:pointer;touch-action:none}
+.range .track::before{content:"";position:absolute;left:0;right:0;top:12px;height:6px;background:#cfccc4;border-radius:3px}
+.range .track::after{content:"";position:absolute;left:50%;top:7px;width:2px;height:16px;background:#a9a59b;transform:translateX(-1px)}
+.range .fill{position:absolute;top:12px;height:6px;background:#1f211e;border-radius:3px;z-index:1}
+.range .prev{position:absolute;top:2px;height:5px;background:#8f8b82;opacity:.45;border-radius:3px;pointer-events:none}
+.range .sim{position:absolute;top:23px;height:5px;background:#2a78d6;opacity:.5;border-radius:3px;pointer-events:none}
+.range input[type=range]{position:absolute;inset:0;width:100%;height:30px;margin:0;-webkit-appearance:none;appearance:none;background:transparent;pointer-events:none;z-index:2}
 .range input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;pointer-events:auto;width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid #1f211e;cursor:grab}
 .range input[type=range]::-moz-range-thumb{pointer-events:auto;width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid #1f211e;cursor:grab}
 .range.untouched input[type=range],.range.untouched .fill{visibility:hidden}
-.range .scale{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
-.range .readout{font-size:14px;margin-top:8px;min-height:1.4em}
+.range .scale{position:relative;height:34px;font-size:11px;line-height:1.25;color:var(--muted);margin-top:4px}
+.range .scale span{position:absolute;top:0;transform:translateX(-50%);text-align:center;white-space:nowrap}
+.range .scale span.first{transform:none;text-align:left}
+.range .scale span.last{transform:translateX(-100%);text-align:right}
+.range .scale b{color:var(--ink);font-weight:600}
+.range .readout{font-size:14px;margin-top:6px;min-height:1.4em}
+.range .prev-text{font-size:12px;color:#77746c}
+.range .sim-text{font-size:12px;color:#2a78d6}
+.hint-line{font-size:14px;color:var(--muted)}
 .choices label{display:block;padding:6px 0;cursor:pointer}
-.option-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-.option-grid .room-view{margin:4px 0 4px}
-.option-grid .option-name{font-size:15px}
-@media(max-width:760px){.option-grid{grid-template-columns:1fr}}
 
-/* Queries with two or four rooms (15 Oct). */
-.pair-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
-.pair-cell,.variant{min-width:0}
-.pair-cell .description{margin-bottom:8px}
+/* Screens with several rooms side by side (21 Oct): use the full width. */
+main{width:min(1280px,100%)}
+.card.wide{width:min(1220px,100%)}
+.row-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.row-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.row-grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.row-grid .cell{min-width:0}
+.row-grid .room-view{margin:4px 0 8px}
+.row-grid .description{padding:10px 12px;margin:4px 0 6px;font-size:14px}
+.row-grid .description .feature{flex-basis:74px;font-size:11px}
+.row-grid .option-name{font-size:15px}
+.cell.original{opacity:.92}
 .room-label{font-weight:700;margin:4px 0 6px}
-.variant{border-top:1px solid var(--line);padding-top:10px}
-.option-grid .variant{border-top:0;padding-top:0}
-.variant .range{margin:6px 0 12px}
 .choices.pick{margin-top:10px;padding:14px 16px;border:1px solid var(--line);border-radius:10px}
 .choices.pick label{display:inline-block;margin-right:18px}
-@media(max-width:760px){.pair-grid{grid-template-columns:1fr}}
-
-/* The simulated person's answer, drawn under the slider in viz mode. */
-.range .ghost{position:absolute;top:20px;height:6px;background:#2a78d6;opacity:.45;border-radius:3px;pointer-events:none}
-.range .ghost-text{font-size:12px;color:#2a78d6}
+@media(max-width:1000px){.row-grid,.row-grid.three{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.row-grid,.row-grid.two,.row-grid.three{grid-template-columns:1fr}}
 
 /* ?viz=1: the task on the left, the simulated person on the right. */
 :root{--vz-belief:#2a78d6;--vz-belief-soft:#2a78d626;--vz-truth:#eb6834;--vz-rank:#d9822b;--vz-cell:#ecebe6}
 body.viz main{width:min(1560px,100%)}
 body.viz .layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
-body.viz .card{width:100%;padding:24px 26px}
+body.viz .card,body.viz .card.wide{width:100%;padding:24px 26px}
+body.viz .row-grid,body.viz .row-grid.three{grid-template-columns:repeat(2,minmax(0,1fr))}
 body.viz .room-view{aspect-ratio:16/8}
 .viz-panel{position:sticky;top:0;max-height:100vh;overflow:auto;display:grid;gap:12px;padding:0 2px 24px;font-size:13px;line-height:1.45}
 .vz-head{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:8px}
@@ -108,3 +104,9 @@ body.viz .room-view{aspect-ratio:16/8}
 .vz-tip{position:fixed;pointer-events:none;background:var(--ink);color:#fff;font:12px/1.4 ui-monospace,Menlo,monospace;padding:6px 8px;border-radius:6px;z-index:30;max-width:270px}
 @media(max-width:1000px){body.viz .layout{grid-template-columns:1fr}.viz-panel{position:static;max-height:none}}
 .viz-panel[hidden]{display:none}
+/* Narrow sliders (several rooms side by side): ends and neutral only, so labels don't collide. */
+.row-grid .range .scale span:nth-child(2),.row-grid .range .scale span:nth-child(4){display:none}
+.row-grid .range .scale span:nth-child(3) b{display:none}
+.row-grid .range .scale span:nth-child(3) br{display:none}
+body.viz .range .scale span:nth-child(2),body.viz .range .scale span:nth-child(4){display:none}
+.row-grid.three .description,.row-grid.four .description{min-height:80px}

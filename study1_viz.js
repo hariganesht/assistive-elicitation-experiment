@@ -100,7 +100,7 @@ export function createViz(panel, { queries, seed, mapping, onAutofill }) {
       L[i * N + j] = i === j ? Math.sqrt(Math.max(s, 1e-12)) : s / L[j * N + j];
     }
     const rand = mulberry32(P.seed * 2654435761);
-    m0 = Float64Array.from({ length: N }, () => 50 + 5 * gauss(rand));    // what they expect from the text
+    m0 = Float64Array.from({ length: N }, () => 5 * gauss(rand));         // what they expect from the text (scale -50..+50)
     const z = Array.from({ length: N }, () => gauss(rand));
     U = new Float64Array(N);                                                // their true likings
     for (let i = 0; i < N; i++) { let s = m0[i]; for (let k = 0; k <= i; k++) s += L[i * N + k] * z[k]; U[i] = s; }
@@ -259,8 +259,8 @@ export function createViz(panel, { queries, seed, mapping, onAutofill }) {
   const prevOf = () => (view.phase === "before" ? { m: B.m, v: Float64Array.from({ length: N }, (_, i) => B.S[i * N + i]) } : { m: results[view.qi].preM, v: results[view.qi].preV });
 
   function status() {
-    const q = queries[view.qi], r = results[view.qi], names = { single: "one room", pair: "two rooms", feature: `four rooms, varying the ${FEATURE_NAMES[q.feature]?.toLowerCase()}` };
-    const head = `<b>Task ${view.qi + 1} of ${queries.length}</b> · ${names[q.kind]}`;
+    const q = queries[view.qi], r = results[view.qi], names = { warmup: "warm-up room", single: "one room", base: "a room seen earlier, seen again", pair: "two rooms", feature: `the original and three versions, varying the ${FEATURE_NAMES[q.feature]?.toLowerCase()}` };
+    const head = `<b>Step ${view.qi + 1} of ${queries.length}</b> · ${names[q.kind]}`;
     const rng = (x) => `${f0(x[0])} to ${f0(x[1])}`;
     let body = "";
     if (view.phase === "before") {
@@ -346,7 +346,7 @@ export function createViz(panel, { queries, seed, mapping, onAutofill }) {
       svg.append(el("text", { x: cx, y: H - Bt + 16, "text-anchor": "middle", class: "vz-ax" }, codeOf(r.i)));
       svg.append(el("text", { x: cx, y: H - Bt + 30, "text-anchor": "middle", class: "vz-lab" }, isShown ? "seen" : `shares ${sharedN(r.i, idxOf(q.shown[0]))}`));
     });
-    if (q.kind === "single") svg.append(el("text", { x: W - R, y: T + 10, "text-anchor": "end", class: "vz-lab" }, "One room alone: the order model learns nothing."));
+    if (q.shown.length === 1) svg.append(el("text", { x: W - R, y: T + 10, "text-anchor": "end", class: "vz-lab" }, "One room alone: the order model learns nothing."));
   }
 
   function drawAll() {

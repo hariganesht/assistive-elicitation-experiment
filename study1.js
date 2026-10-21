@@ -1,20 +1,23 @@
 // Study 1: what do people learn about their own preferences from seeing rooms?
-// Design as of 15 Oct 2026. The queries are the same as QUERIES in study1_all.jl:
-//   [single_queries(); feature_queries(:liked; n = 8); pair_queries(4)]
+// Design as of 21 Oct 2026 (changes from the 15 Oct meeting). Same events as the model code.
 //
-// Flow:  welcome -> instructions (lowest/highest explained) -> comprehension check -> slider practice
+// Flow:  welcome -> instructions -> comprehension check -> slider practice
 //        -> the options, one screen per feature (4 options each)
-//        -> 20 queries in a random order:
-//             8 single rooms   rate from text -> see the room, rate again -> rate 3 neighbours from text
-//             8 feature        a room they have seen + 3 versions changing one feature: rate from text ->
-//                              see all four, rate again, pick the best
-//             4 comparison     two rooms: rate both from text -> see both, rate again -> rate 1 neighbour
+//        -> warm-up: 8 example rooms, seen and rated (builds and measures each person's prior)
+//        -> 20 tasks in a random order:
+//             8 single rooms   rate from text -> see the room, rate again -> rate 3 similar rooms from text
+//             8 feature tasks  see a room seen earlier, rate it -> read 3 versions that change one feature, rate them
+//                              -> see all of them side by side, rate the versions again, pick the best
+//             4 comparisons    two rooms: rate from text -> see both, rate again -> rate 1 similar room
 //        -> comments, save
 //
+// Ratings are ranges on a -50 (strongly dislike) to +50 (strongly like) scale. When a room is rated again,
+// the earlier answer is shown faintly.
+//
 // URL options:
-//   ?debug=1   short version (one query of each kind, no waiting)
+//   ?debug=1   short version (2 warm-up rooms, one task of each kind, no waiting)
 //   ?viz=1     split screen: the task on the left, a simulated person's beliefs on the right
-//              (starts at the queries; add &full=1 to include the introduction)
+//              (starts at the warm-up; add &full=1 to include the introduction)
 //   ?seed=123  fixes the randomisation (and the simulated person in viz mode)
 import { Room, FEATURES, LEVELS, DESCRIPTIONS, FEATURE_NAMES } from "./room.js";
 
@@ -23,33 +26,36 @@ const CONFIG = {
   saveUrl: "",             // if set, the data are POSTed here as JSON at the end
   completionUrl: "",       // if set, a link back to the recruitment site is shown at the end
   minFeatureViewMs: 5000,  // each feature screen must be looked at for at least this long
-  minRoomViewMs: 3000,     // each room screen must be looked at for at least this long
-  featureVersion: "liked", // feature queries start from a room already seen ("liked"); "new" is the other version
+  minRoomViewMs: 3000,     // each screen with room images must be looked at for at least this long
 };
-const QUESTION = "On a scale of 0 to 100, how much do you think you like this room?";
+const QUESTION = "How much do you think you like this room?";
+const HINT = "Give the lowest and highest rating you think you could end up giving it.";
+const SCALE = [[-50, "Strongly dislike"], [-25, "Dislike"], [0, "Neutral"], [25, "Like"], [50, "Strongly like"]];
 
 // Rooms are written as option labels 1-4 for (furniture, lighting, wall, decor). Which real option
 // is "1", "2", ... is shuffled for each participant below.
 const SEEN = ["1111", "1223", "2343", "2431", "3312", "3424", "4144", "4232"];
 const OA16 = ["1111", "1223", "1334", "1442", "2122", "2214", "2343", "2431", "3133", "3241", "3312", "3424", "4144", "4232", "4321", "4413"];
+// Warm-up rooms: each option appears twice, any two share at most one option, none appears in the tasks.
+const WARMUP = ["1444", "2332", "3123", "4211", "1313", "2224", "3431", "4142"];
 
-// The room `code` moved on by `step` options in the features `feats` (0-based). Same as change() in Julia.
+// The room `code` moved on by `step` options in the features `feats` (0-based). Same as shift() in Julia.
 function change(code, feats, step) { return code.split("").map((d, f) => (feats.includes(f) ? String(((Number(d) - 1 + step) % 4) + 1) : d)).join(""); }
 const shared = (a, b) => [...a].filter((d, i) => d === b[i]).length;
 
-// The 20 queries, in design order. t is 0-based.
+// The 20 tasks, in design order. t is 0-based.
 function singleQuery(code, t) {
   const f = t % 4, g = (k) => (f + k) % 4;
-  return { kind: "single", design: t + 1, shown: [code], read: [true], neighbours: [change(code, [f], 1), change(code, [g(1), g(2)], 2), change(code, [f, g(1), g(2)], 3)] };
+  return { kind: "single", design: t + 1, shown: [code], neighbours: [change(code, [f], 1), change(code, [g(1), g(2)], 2), change(code, [f, g(1), g(2)], 3)] };
 }
 function featureQuery(code, t) {
   const f = t % 4;
   const variants = [1, 2, 3, 4].filter((v) => String(v) !== code[f]).map((v) => code.slice(0, f) + v + code.slice(f + 1));
-  return { kind: "feature", design: t + 1, feature: FEATURES[f], f, base: code, shown: [code, ...variants], read: [CONFIG.featureVersion === "new", true, true, true], neighbours: [] };
+  return { kind: "feature", design: t + 1, feature: FEATURES[f], f, base: code, variants, shown: [code, ...variants], neighbours: [] };
 }
 function pairQuery(t) {
   const a = OA16[2 * t], b = OA16[2 * t + 1];
-  return { kind: "pair", design: t + 1, shown: [a, b], read: [true, true], neighbours: [change(a, [t % 4], 1)] };
+  return { kind: "pair", design: t + 1, shown: [a, b], neighbours: [change(a, [t % 4], 1)] };
 }
 
 // ---------------------------------------------------------------- participant and randomisation
@@ -65,33 +71,41 @@ function shuffle(list) { const a = [...list]; for (let i = a.length - 1; i > 0; 
 const mapping = Object.fromEntries(FEATURES.map((f) => [f, shuffle(LEVELS[f])]));
 const roomOptions = (code) => Object.fromEntries(FEATURES.map((f, i) => [f, mapping[f][Number(code[i]) - 1]]));
 
-// Random order, except that each feature query comes after the single query that showed its base room
-// (its base room is one they have already seen).
+// Random order, except that each feature task comes after the single task that showed its base room.
 function makeOrder() {
   let all = [...SEEN.map(singleQuery), ...SEEN.map(featureQuery), ...[0, 1, 2, 3].map(pairQuery)];
   if (DEBUG) all = [all[0], all[8], all[16]];
-  let order = shuffle(all);
-  if (CONFIG.featureVersion === "liked") {
-    for (const q of order.filter((x) => x.kind === "feature")) {
-      const iSingle = order.findIndex((x) => x.kind === "single" && x.shown[0] === q.base);
-      const iFeat = order.indexOf(q);
-      if (iSingle > iFeat) {
-        order.splice(iFeat, 1);
-        const at = iSingle + Math.floor(random() * (order.length - iSingle + 1));   // anywhere after the single query
-        order.splice(Math.max(at, iSingle), 0, q);
-      }
+  const order = shuffle(all);
+  for (const q of order.filter((x) => x.kind === "feature")) {
+    const iSingle = order.findIndex((x) => x.kind === "single" && x.shown[0] === q.base);
+    const iFeat = order.indexOf(q);
+    if (iSingle > iFeat) {
+      order.splice(iFeat, 1);
+      const at = iSingle + Math.floor(random() * (order.length - iSingle + 1));   // anywhere after the single task
+      order.splice(Math.max(at, iSingle), 0, q);
     }
   }
   return order;
 }
+const warmupOrder = shuffle(WARMUP).slice(0, DEBUG ? 2 : WARMUP.length);
 const queryOrder = makeOrder();
 
+// The same sequence as "events" (what is on screen, what gives a new impression), for the simulated person
+// and for the model code: a feature task is two events, the base room seen again and then the versions.
+const EVENTS = [
+  ...warmupOrder.map((x) => ({ kind: "warmup", shown: [x], read: [true], neighbours: [] })),
+  ...queryOrder.flatMap((q) => q.kind === "feature"
+    ? [{ kind: "base", shown: [q.base], read: [true], neighbours: [] },
+       { kind: "feature", feature: q.feature, shown: q.shown, read: [false, true, true, true], neighbours: [] }]
+    : [{ kind: q.kind, shown: q.shown, read: q.shown.map(() => true), neighbours: q.neighbours }]),
+];
+
 const data = {
-  study: "study1", version: 3, seed, debug: DEBUG, viz: VIZ, config: CONFIG,
+  study: "study1", version: 4, seed, debug: DEBUG, viz: VIZ, config: CONFIG, scale: [-50, 50],
   participant: params.get("PROLIFIC_PID") || params.get("pid") || `anon-${seed}`,
   urlParams: Object.fromEntries(params), userAgent: navigator.userAgent,
   startedAt: new Date().toISOString(), mapping,
-  practice: null, check: [], features: [], queries: [], records: [], comments: "", finishedAt: null,
+  practice: null, check: [], features: [], events: [], records: [], comments: "", finishedAt: null,
 };
 const backupKey = `study1-${data.participant}`;
 function backup() { try { localStorage.setItem(backupKey, JSON.stringify(data)); } catch (e) { /* carry on */ } }
@@ -105,10 +119,10 @@ function el(tag, attrs = {}, ...children) {
   node.append(...children);
   return node;
 }
-function newCard(step) {
+function newCard(step, { wide = false } = {}) {
   openRooms.forEach((r) => r.dispose()); openRooms = [];
   screenEl.replaceChildren();
-  const card = el("div", { class: "card" });
+  const card = el("div", { class: wide ? "card wide" : "card" });
   if (step) card.append(el("div", { class: "step", text: step }));
   screenEl.append(card); if (!VIZ) window.scrollTo(0, 0);
   return card;
@@ -123,67 +137,88 @@ function nextButton(card, { label = "Next", minMs = 0, ready = () => true, hint 
   return new Promise((resolve) => { button.onclick = () => { const p = ready(); if (p !== true) { error.textContent = p; return; } resolve(Math.round(performance.now() - shown)); }; });
 }
 
-// One slider with two handles, lowest and highest, on a visible 0-100 scale. Nothing is shown until
-// the participant clicks on the line; the first click puts both handles there.
-// In viz mode, ghost() draws the simulated person's answer under the line and fillWith() copies it.
+// ---------------------------------------------------------------- the range slider
+// One line from -50 to +50 with two handles, lowest and highest. Press on the line and drag to set the
+// range in one go; afterwards, pressing on the line moves the nearer handle, and the handles can be dragged.
+// prev() shows the person's earlier answer faintly; ghost() shows the simulated person's answer (viz mode).
+const fmt = (v) => (v > 0 ? `+${v}` : `${v}`);
+const clampScale = (v) => Math.max(-50, Math.min(50, Math.round(v)));
+const pos = (v) => `${v + 50}%`;
 function rangeSlider(question) {
-  const lo = el("input", { type: "range", min: "0", max: "100", step: "1", value: "50", "aria-label": "lowest" });
-  const hi = el("input", { type: "range", min: "0", max: "100", step: "1", value: "50", "aria-label": "highest" });
+  const lo = el("input", { type: "range", min: "-50", max: "50", step: "1", value: "0", "aria-label": "lowest" });
+  const hi = el("input", { type: "range", min: "-50", max: "50", step: "1", value: "0", "aria-label": "highest" });
   const fill = el("div", { class: "fill" });
-  const ghostBand = el("div", { class: "ghost", hidden: "" });
-  const track = el("div", { class: "track" }, ghostBand, fill, lo, hi);
+  const prevBand = el("div", { class: "prev", hidden: "" });
+  const simBand = el("div", { class: "sim", hidden: "" });
+  const track = el("div", { class: "track" }, prevBand, simBand, fill, lo, hi);
+  const scale = el("div", { class: "scale" }, ...SCALE.map(([v, word], i) =>
+    el("span", { class: i === 0 ? "first" : i === SCALE.length - 1 ? "last" : "", style: `left:${pos(v)}` }, el("b", { text: fmt(v) }), el("br"), word)));
   const readout = el("div", { class: "readout" });
-  const ghostText = el("div", { class: "ghost-text", hidden: "" });
-  const node = el("div", { class: "range untouched" }, question ? el("div", { class: "question", text: question }) : "", track,
-    el("div", { class: "scale" }, ...[0, 25, 50, 75, 100].map((v) => el("span", { text: String(v) }))), readout, ghostText);
-  let touched = false;
+  const prevText = el("div", { class: "prev-text", hidden: "" });
+  const simText = el("div", { class: "sim-text", hidden: "" });
+  const node = el("div", { class: "range untouched" }, question ? el("div", { class: "question", text: question }) : "", track, scale, readout, prevText, simText);
+  let touched = false, anchor = 0, dragging = false;
   const draw = () => {
     let a = Number(lo.value), b = Number(hi.value);
     if (a > b) { [a, b] = [b, a]; lo.value = a; hi.value = b; }
-    fill.style.left = `${a}%`; fill.style.width = `${b - a}%`;
-    readout.textContent = touched ? (a === b ? `Exactly ${a}` : `Lowest ${a}  ·  Highest ${b}`) : "Click on the line";
+    fill.style.left = pos(a); fill.style.width = `${b - a}%`;
+    readout.textContent = touched ? (a === b ? `Exactly ${fmt(a)}` : `Lowest ${fmt(a)}  ·  Highest ${fmt(b)}`) : "Press on the line and drag to set your range";
   };
-  const setTo = (a, b) => { lo.value = a; hi.value = b; touched = true; node.classList.remove("untouched"); draw(); };
+  const setRange = (p, q) => { lo.value = Math.min(p, q); hi.value = Math.max(p, q); touched = true; node.classList.remove("untouched"); draw(); };
+  const valueAt = (x) => { const box = track.getBoundingClientRect(); return clampScale(-50 + (100 * (x - box.left)) / box.width); };
   track.addEventListener("pointerdown", (e) => {
-    if (touched) return;
-    const box = track.getBoundingClientRect();
-    const v = Math.max(0, Math.min(100, Math.round((100 * (e.clientX - box.left)) / box.width)));
-    setTo(v, v);
+    if (e.target === lo || e.target === hi) return;               // dragging a handle: the browser does it
+    e.preventDefault();
+    const v = valueAt(e.clientX);
+    if (!touched) anchor = v;
+    else { const a = Number(lo.value), b = Number(hi.value); anchor = Math.abs(v - a) <= Math.abs(v - b) ? b : a; }
+    setRange(anchor, v); dragging = true; track.setPointerCapture(e.pointerId);
   });
+  track.addEventListener("pointermove", (e) => { if (dragging) setRange(anchor, valueAt(e.clientX)); });
+  const stop = () => { dragging = false; };
+  track.addEventListener("pointerup", stop); track.addEventListener("pointercancel", stop);
   lo.addEventListener("input", draw); hi.addEventListener("input", draw);
   draw();
-  const clamp = (v) => Math.max(0, Math.min(100, Math.round(v)));
-  let ghostValue = null;
+  const band = (bandEl, textEl, r, label) => {
+    const a = clampScale(r[0]), b = clampScale(r[1]);
+    bandEl.hidden = false; bandEl.style.left = pos(a); bandEl.style.width = `${Math.max(b - a, 0.8)}%`;
+    textEl.hidden = false; textEl.textContent = `${label}: ${fmt(a)} to ${fmt(b)}`;
+  };
+  let simValue = null;
   return {
     node,
     value: () => (touched ? { low: Number(lo.value), high: Number(hi.value) } : null),
-    ghost(r) {
-      ghostValue = r; const a = clamp(r[0]), b = clamp(r[1]);
-      ghostBand.hidden = false; ghostBand.style.left = `${a}%`; ghostBand.style.width = `${Math.max(b - a, 0.6)}%`;
-      ghostText.hidden = false; ghostText.textContent = `Simulated person: ${a} to ${b}`;
-    },
-    fillWith() { if (ghostValue) setTo(clamp(ghostValue[0]), clamp(ghostValue[1])); },
+    prev(r) { if (r) band(prevBand, prevText, [r.low, r.high], "Your earlier answer"); },
+    ghost(r) { simValue = r; band(simBand, simText, r, "Simulated person"); },
+    fillWith() { if (simValue) setRange(clampScale(simValue[0]), clampScale(simValue[1])); },
   };
 }
-const answered = (...s) => () => (s.every((x) => x.value() !== null) ? true : "Please answer every question by clicking on its line.");
+const answered = (...s) => () => (s.every((x) => x.value() !== null) ? true : "Please answer every question by pressing on its line.");
 function describe(options, only = FEATURES) {
   return el("ul", { class: "description" }, ...only.map((f) =>
     el("li", {}, el("span", { class: "feature", text: FEATURE_NAMES[f] }), el("span", { text: DESCRIPTIONS[options[f]] }))));
 }
 function roomView(parent) { const v = el("div", { class: "room-view" }); parent.append(v); return v; }
-const LETTERS = ["A", "B", "C", "D"];
+const LETTERS = ["A", "B", "C"];
+
+// The latest answer for each room, shown faintly when the room is rated again.
+const lastAnswer = {};
+function slider(card, room, question = QUESTION) {
+  const s = rangeSlider(question); s.prev(lastAnswer[room]); card.append(s.node); return s;
+}
+const asRange = (v) => (v ? [v.low, v.high] : null);
+const remember = (room, v) => { if (v) lastAnswer[room] = v; return asRange(v); };
 
 // ---------------------------------------------------------------- the simulated person (viz mode only)
-let viz = null;
-let autofill = false;
-let currentFill = null;
-// Show the simulated person's answers on this screen's sliders, and fill them in if autofill is on.
+let viz = null, autofill = false, currentFill = null;
 function simAnswers(sliders, ranges, extra) {
   if (!viz) return;
   sliders.forEach((s, i) => { if (ranges[i]) s.ghost(ranges[i]); });
   currentFill = () => { sliders.forEach((s) => s.fillWith()); extra?.(); };
   if (autofill) currentFill();
 }
+let eventIndex = -1;
+const nextEvent = () => ++eventIndex;
 
 // ---------------------------------------------------------------- screens: introduction
 async function welcome() {
@@ -199,16 +234,16 @@ async function instructions() {
   const card = newCard();
   card.append(el("h2", { text: "How you will answer" }),
     el("p", { text: "Each room has four things that can vary: the furniture, the lighting, the walls and the wall decor." }),
-    el("p", { text: `For every room we ask the same question: "${QUESTION}"` }),
-    el("p", { text: "You answer with a lowest and a highest value on one line. If you are unsure, give a wide range: for example 30 to 70. If you are sure, give a narrow one, or put both handles on the same point." }),
-    el("p", { text: "Sometimes you will only read a description, and sometimes you will also see the room. Sometimes you will see two or four rooms at once. Answer with what you think at that moment." }));
+    el("p", { text: `For every room we ask: "${QUESTION}" You answer on a scale from −50 (strongly dislike) through 0 (neutral) to +50 (strongly like).` }),
+    el("p", { text: "Give the lowest and highest rating you think you could end up giving the room. If you are unsure, give a wide range, for example −20 to +30. If you are sure, give a narrow one, or put both handles on the same point." }),
+    el("p", { text: "Sometimes you will only read a description, and sometimes you will also see the room. When you rate a room again, your earlier answer is shown faintly. Keep it or change it: answer with what you think now." }));
   await nextButton(card);
 }
 
 async function check() {
   const qs = [
-    { q: "You are completely sure you would rate a room 60. What do you do?", a: ["Put both handles on 60", "Put one handle on 0 and one on 100", "Put one handle on 60 and leave the other"], right: 0 },
-    { q: "You have no idea whether you would like a room. What do you do?", a: ["Put both handles on 50", "Give a wide range, for example 10 to 90", "Give a narrow range around 50"], right: 1 },
+    { q: "You are completely sure you would rate a room +20. What do you do?", a: ["Put both handles on +20", "Put one handle on −50 and one on +50", "Put one handle on +20 and leave the other"], right: 0 },
+    { q: "You have no idea whether you would like a room. What do you do?", a: ["Put both handles on 0", "Give a wide range, for example −40 to +40", "Give a narrow range around 0"], right: 1 },
   ];
   for (let attempt = 1; ; attempt++) {
     const card = newCard("Quick check");
@@ -230,7 +265,7 @@ async function check() {
 
 async function practice() {
   const card = newCard("Practice");
-  card.append(el("h2", { text: "Try the slider" }), el("p", { text: "Click on the line, then drag the two handles to set your lowest and highest." }));
+  card.append(el("h2", { text: "Try the slider" }), el("p", { text: "Press on the line and drag to set your lowest and highest. You can then drag either handle." }));
   const s = rangeSlider("How much do you like rainy days?");
   card.append(s.node);
   const ms = await nextButton(card, { ready: answered(s) });
@@ -238,15 +273,15 @@ async function practice() {
 }
 
 async function features() {
-  const intro = newCard("Part 1 of 2");
+  const intro = newCard("Part 1 of 3");
   intro.append(el("h2", { text: "The choices" }),
     el("p", { text: "First you will see the four choices for each part of the room, shown in a plain grey room. Please look at them carefully. There is nothing to answer." }));
   await nextButton(intro);
   for (const [i, f] of shuffle(FEATURES).entries()) {
-    setProgress(0.03 + 0.12 * (i / 4));
-    const card = newCard(`Part 1 of 2 · ${i + 1} of 4`);
+    setProgress(0.03 + 0.1 * (i / 4));
+    const card = newCard(`Part 1 of 3 · ${i + 1} of 4`, { wide: true });
     card.append(el("h2", { text: `Here are the four kinds of ${FEATURE_NAMES[f].toLowerCase()}` }));
-    const grid = el("div", { class: "option-grid" }); card.append(grid);
+    const grid = el("div", { class: "row-grid" }); card.append(grid);
     const order = shuffle(LEVELS[f]);
     for (const option of order) {
       const cell = el("div", {}); grid.append(cell);
@@ -258,129 +293,165 @@ async function features() {
   }
 }
 
-// ---------------------------------------------------------------- screens: the three kinds of query
-const asRange = (v) => (v ? [v.low, v.high] : null);
+// ---------------------------------------------------------------- recording
+// One record per rated room per event, in the layout the model code reads (fromrecords in study1_short.jl).
+function record(ev, kind, rows, picked, onScreen) {
+  for (const r of rows) data.records.push({ event: ev + 1, kind, room: r.room, role: r.role, read: r.read, onScreen, before: r.before, after: r.after, picked });
+  data.events.push({ event: ev + 1, kind, rows, picked, onScreen }); backup();
+}
 
-// Neighbours: rated from text only, after the room(s) have been seen.
-async function rateNeighbours(q, step, hint, row) {
-  for (const n of shuffle(q.neighbours)) {
-    viz?.goTo(row.query - 1, "neighbours", n);
-    const card = newCard(`${step} · A similar room`);
-    card.append(el("h2", { text: "A room with:" }), describe(roomOptions(n)));
-    const s = rangeSlider(QUESTION); card.append(s.node);
-    simAnswers([s], [viz?.answer(n, "after")]);
-    const ms = await nextButton(card, { ready: answered(s), hint });
-    row.rooms.push({ room: n, role: "neighbour", shared: shared(n, q.shown[0]), read: false, before: null, after: asRange(s.value()), msAfter: ms });
-    backup();
+// ---------------------------------------------------------------- warm-up
+async function warmup() {
+  const intro = newCard("Part 2 of 3");
+  intro.append(el("h2", { text: "Some example rooms" }),
+    el("p", { text: `To start, here are ${warmupOrder.length} example rooms. For each one, look at it and say how much you think you like it.` }));
+  await nextButton(intro);
+  for (const [i, code] of warmupOrder.entries()) {
+    setProgress(0.13 + 0.1 * (i / warmupOrder.length));
+    const ev = nextEvent(); viz?.goTo(ev, "see");
+    const options = roomOptions(code);
+    const card = newCard(`Part 2 of 3 · Example ${i + 1} of ${warmupOrder.length}`);
+    const room = new Room(roomView(card), options); openRooms.push(room);
+    card.append(describe(options), el("p", { class: "hint-line", text: HINT }));
+    const s = slider(card, code);
+    simAnswers([s], [viz?.answer(code, "after")]);
+    const ms = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(s) });
+    record(ev, "warmup", [{ room: code, role: "shown", read: true, before: null, after: remember(code, s.value()), msAfter: ms }], code, 1);
   }
 }
 
-async function singleRoom(q, step, hint, row) {
-  const code = q.shown[0], options = roomOptions(code);
-  viz?.goTo(row.query - 1, "before");
-  let card = newCard(step);
-  card.append(el("h2", { text: "A room with:" }), describe(options));
-  let s = rangeSlider(QUESTION); card.append(s.node);
-  simAnswers([s], [viz?.answer(code, "before")]);
-  const msBefore = await nextButton(card, { ready: answered(s), hint, label: "See the room" });
-  const before = asRange(s.value());
-
-  viz?.goTo(row.query - 1, "see");
-  card = newCard(`${step} · The room`);
-  card.append(describe(options));
-  const room = new Room(roomView(card), options); openRooms.push(room);
-  s = rangeSlider(QUESTION); card.append(s.node);
-  simAnswers([s], [viz?.answer(code, "after")]);
-  const msAfter = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(s), hint });
-  row.rooms.push({ room: code, role: "shown", shared: 4, read: true, before, after: asRange(s.value()), msBefore, msAfter });
-  row.picked = code;
-  await rateNeighbours(q, step, hint, row);
+// ---------------------------------------------------------------- the three kinds of task
+async function rateNeighbours(q, step, hint, ev, rows) {
+  for (const n of shuffle(q.neighbours)) {
+    viz?.goTo(ev, "neighbours", n);
+    const card = newCard(`${step} · A similar room`);
+    card.append(el("h2", { text: "A room with:" }), describe(roomOptions(n)), el("p", { class: "hint-line", text: HINT }));
+    const s = slider(card, n);
+    simAnswers([s], [viz?.answer(n, "after")]);
+    const ms = await nextButton(card, { ready: answered(s), hint });
+    rows.push({ room: n, role: "neighbour", shared: shared(n, q.shown[0]), read: false, before: null, after: remember(n, s.value()), msAfter: ms });
+  }
 }
 
-async function pairRooms(q, step, hint, row) {
-  const opts = q.shown.map(roomOptions);
-  viz?.goTo(row.query - 1, "before");
+async function singleRoom(q, step, hint) {
+  const code = q.shown[0], options = roomOptions(code), ev = nextEvent();
+  viz?.goTo(ev, "before");
   let card = newCard(step);
-  card.append(el("h2", { text: "Two rooms" }));
-  let grid = el("div", { class: "pair-grid" }); card.append(grid);
+  card.append(el("h2", { text: "A room with:" }), describe(options), el("p", { class: "hint-line", text: HINT }));
+  let s = slider(card, code);
+  simAnswers([s], [viz?.answer(code, "before")]);
+  const msBefore = await nextButton(card, { ready: answered(s), hint, label: "See the room" });
+  const before = remember(code, s.value());
+
+  viz?.goTo(ev, "see");
+  card = newCard(`${step} · The room`);
+  const room = new Room(roomView(card), options); openRooms.push(room);
+  card.append(describe(options));
+  s = slider(card, code);
+  simAnswers([s], [viz?.answer(code, "after")]);
+  const msAfter = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(s), hint });
+  const rows = [{ room: code, role: "shown", shared: 4, read: true, before, after: remember(code, s.value()), msBefore, msAfter }];
+  await rateNeighbours(q, step, hint, ev, rows);
+  record(ev, "single", rows, code, 1);
+}
+
+async function pairRooms(q, step, hint) {
+  const opts = q.shown.map(roomOptions), ev = nextEvent();
+  viz?.goTo(ev, "before");
+  let card = newCard(step, { wide: true });
+  card.append(el("h2", { text: "Two rooms" }), el("p", { class: "hint-line", text: HINT }));
+  let grid = el("div", { class: "row-grid two" }); card.append(grid);
   let sliders = q.shown.map((code, i) => {
-    const cell = el("div", { class: "pair-cell" }, el("div", { class: "room-label", text: `Room ${LETTERS[i]}` }), describe(opts[i]));
-    const s = rangeSlider(QUESTION); cell.append(s.node); grid.append(cell); return s;
+    const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: `Room ${i === 0 ? "A" : "B"}` }), describe(opts[i]));
+    grid.append(cell); return slider(cell, code);
   });
   simAnswers(sliders, q.shown.map((c) => viz?.answer(c, "before")));
   const msBefore = await nextButton(card, { ready: answered(...sliders), hint, label: "See the rooms" });
-  const before = sliders.map((s) => asRange(s.value()));
+  const before = sliders.map((s, i) => remember(q.shown[i], s.value()));
 
-  viz?.goTo(row.query - 1, "see");
-  card = newCard(`${step} · The rooms`);
-  grid = el("div", { class: "pair-grid" }); card.append(grid);
+  viz?.goTo(ev, "see");
+  card = newCard(`${step} · The rooms`, { wide: true });
+  grid = el("div", { class: "row-grid two" }); card.append(grid);
   sliders = q.shown.map((code, i) => {
-    const cell = el("div", { class: "pair-cell" }, el("div", { class: "room-label", text: `Room ${LETTERS[i]}` }));
+    const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: `Room ${i === 0 ? "A" : "B"}` }));
     const room = new Room(roomView(cell), opts[i]); openRooms.push(room);
-    cell.append(describe(opts[i]));
-    const s = rangeSlider(QUESTION); cell.append(s.node); grid.append(cell); return s;
+    cell.append(describe(opts[i])); grid.append(cell); return slider(cell, code);
   });
   simAnswers(sliders, q.shown.map((c) => viz?.answer(c, "after")));
   const msAfter = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(...sliders), hint });
-  q.shown.forEach((code, i) => row.rooms.push({ room: code, role: "shown", shared: shared(code, q.shown[0]), read: true, before: before[i], after: asRange(sliders[i].value()), msBefore, msAfter }));
-  const afterMid = sliders.map((s) => { const v = s.value(); return (v.low + v.high) / 2; });
-  row.picked = q.shown[afterMid[1] > afterMid[0] ? 1 : 0];     // the one rated higher after seeing both
-  await rateNeighbours(q, step, hint, row);
+  const rows = q.shown.map((code, i) => ({ room: code, role: "shown", shared: shared(code, q.shown[0]), read: true, before: before[i], after: remember(code, sliders[i].value()), msBefore, msAfter }));
+  const mids = rows.map((r) => (r.after[0] + r.after[1]) / 2);
+  await rateNeighbours(q, step, hint, ev, rows);
+  record(ev, "pair", rows, q.shown[mids[1] > mids[0] ? 1 : 0], 2);    // picked: the one rated higher after seeing both
 }
 
-async function featureRooms(q, step, hint, row) {
-  const f = q.feature, fixed = FEATURES.filter((x) => x !== f);
-  const order = shuffle([0, 1, 2, 3]);                             // screen position of each room
-  const rooms = order.map((k) => q.shown[k]), opts = rooms.map(roomOptions);
-  viz?.goTo(row.query - 1, "before");
-  let card = newCard(step);
-  card.append(el("h2", { text: `Four rooms that differ only in the ${FEATURE_NAMES[f].toLowerCase()}` }),
-    el("p", { text: "All four rooms have:" }), describe(opts[0], fixed),
-    el("p", { text: `They differ only in the ${FEATURE_NAMES[f].toLowerCase()}:` }));
-  let sliders = rooms.map((code, i) => {
-    const cell = el("div", { class: "variant" }, el("div", { class: "room-label", text: `Room ${LETTERS[i]}: ${DESCRIPTIONS[opts[i][f]]}` }));
-    const s = rangeSlider(""); cell.append(s.node); card.append(cell); return s;
-  });
-  simAnswers(sliders, rooms.map((c) => viz?.answer(c, "before")));
-  const msBefore = await nextButton(card, { ready: answered(...sliders), hint, label: "See the rooms" });
-  const before = sliders.map((s) => asRange(s.value()));
+async function featureRooms(q, step, hint) {
+  const f = q.feature, fname = FEATURE_NAMES[f].toLowerCase(), fixed = FEATURES.filter((x) => x !== f);
+  const base = q.base, baseOpts = roomOptions(base);
+  const versions = shuffle(q.variants), vOpts = versions.map(roomOptions);
 
-  viz?.goTo(row.query - 1, "see");
-  card = newCard(`${step} · The rooms`);
-  card.append(el("h2", { text: `Four rooms that differ only in the ${FEATURE_NAMES[f].toLowerCase()}` }));
-  const grid = el("div", { class: "option-grid" }); card.append(grid);
-  sliders = rooms.map((code, i) => {
-    const cell = el("div", { class: "variant" }, el("div", { class: "room-label", text: `Room ${LETTERS[i]}: ${DESCRIPTIONS[opts[i][f]]}` }));
-    const room = new Room(roomView(cell), opts[i]); openRooms.push(room);
-    const s = rangeSlider(""); cell.append(s.node); grid.append(cell); return s;
+  // 1. The base room again, as an image.
+  let ev = nextEvent(); viz?.goTo(ev, "see");
+  let card = newCard(step);
+  card.append(el("h2", { text: "A room you saw earlier" }));
+  const room0 = new Room(roomView(card), baseOpts); openRooms.push(room0);
+  card.append(describe(baseOpts));
+  const s0 = slider(card, base);
+  simAnswers([s0], [viz?.answer(base, "after")]);
+  const ms0 = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(s0), hint });
+  record(ev, "base", [{ room: base, role: "shown", read: true, before: null, after: remember(base, s0.value()), msAfter: ms0 }], base, 1);
+
+  // 2. Three versions with a different option for one feature, as text.
+  ev = nextEvent(); viz?.goTo(ev, "before");
+  card = newCard(`${step} · Three versions`, { wide: true });
+  card.append(el("h2", { text: `Three versions of this room with different ${fname}` }),
+    el("p", { text: "Everything else stays the same:" }), describe(baseOpts, fixed), el("p", { class: "hint-line", text: HINT }));
+  let grid = el("div", { class: "row-grid three" }); card.append(grid);
+  let sliders = versions.map((code, i) => {
+    const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: `Version ${LETTERS[i]}` }), describe(vOpts[i], [f]));
+    grid.append(cell); return slider(cell, code);
+  });
+  simAnswers(sliders, versions.map((c) => viz?.answer(c, "before")));
+  const msBefore = await nextButton(card, { ready: answered(...sliders), hint, label: "See them" });
+  const before = sliders.map((s, i) => remember(versions[i], s.value()));
+
+  // 3. All of them side by side: rate the versions again and pick the best.
+  viz?.goTo(ev, "see");
+  card = newCard(`${step} · The versions`, { wide: true });
+  card.append(el("h2", { text: `The original room and three versions with different ${fname}` }));
+  grid = el("div", { class: "row-grid four" }); card.append(grid);
+  const orig = el("div", { class: "cell original" }, el("div", { class: "room-label", text: "Original" }));
+  const r0 = new Room(roomView(orig), baseOpts); openRooms.push(r0);
+  orig.append(describe(baseOpts, [f]), el("p", { class: "hint-line", text: "You just rated this room." }));
+  grid.append(orig);
+  sliders = versions.map((code, i) => {
+    const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: `Version ${LETTERS[i]}` }));
+    const room = new Room(roomView(cell), vOpts[i]); openRooms.push(room);
+    cell.append(describe(vOpts[i], [f])); grid.append(cell); return slider(cell, code, "");
   });
   const choice = el("div", { class: "choices pick" }, el("p", { class: "question", text: "Which of the four do you like best?" }));
-  rooms.forEach((code, i) => choice.append(el("label", {}, el("input", { type: "radio", name: "best", value: String(i) }), ` Room ${LETTERS[i]}`)));
+  [base, ...versions].forEach((code, i) => choice.append(el("label", {}, el("input", { type: "radio", name: "best", value: code }), i === 0 ? " Original" : ` Version ${LETTERS[i - 1]}`)));
   card.append(choice);
-  simAnswers(sliders, rooms.map((c) => viz?.answer(c, "after")),
-    () => { const p = rooms.indexOf(viz.picked()); if (p >= 0) choice.querySelector(`input[value="${p}"]`).checked = true; });
-  const pickedIndex = () => { const c = choice.querySelector("input:checked"); return c ? Number(c.value) : null; };
+  simAnswers(sliders, versions.map((c) => viz?.answer(c, "after")),
+    () => { const p = viz.picked(); const box = p && choice.querySelector(`input[value="${p}"]`); if (box) box.checked = true; });
+  const picked = () => choice.querySelector("input:checked")?.value ?? null;
   const msAfter = await nextButton(card, { minMs: CONFIG.minRoomViewMs, hint,
-    ready: () => (answered(...sliders)() === true ? (pickedIndex() !== null ? true : "Please pick the room you like best.") : answered(...sliders)()) });
-  // Stored in design order: the base room first, then its three variants.
-  q.shown.forEach((code, k) => { const i = rooms.indexOf(code); row.rooms.push({ room: code, role: "shown", shared: shared(code, q.base), read: q.read[k], position: LETTERS[i], before: before[i], after: asRange(sliders[i].value()), msBefore, msAfter }); });
-  row.picked = rooms[pickedIndex()];
+    ready: () => (answered(...sliders)() !== true ? answered(...sliders)() : picked() ? true : "Please pick the room you like best.") });
+  const rows = versions.map((code, i) => ({ room: code, role: "shown", shared: 3, read: true, position: LETTERS[i], before: before[i], after: remember(code, sliders[i].value()), msBefore, msAfter }));
+  record(ev, "feature", rows, picked(), 4);
 }
 
-async function queries() {
-  const intro = newCard("Part 2 of 2");
+async function tasks() {
+  const intro = newCard("Part 3 of 3");
   intro.append(el("h2", { text: "The rooms" }),
-    el("p", { text: `You will now go through ${queryOrder.length} short tasks. In each one you first read about one, two or four rooms and answer, then see them and answer again. Sometimes you will then answer for a similar room from its description only.` }));
+    el("p", { text: `You will now go through ${queryOrder.length} short tasks. In each one you read about one or more rooms and answer, then see them and answer again. Sometimes you will then answer for a similar room from its description only.` }));
   await nextButton(intro);
-
   for (const [i, q] of queryOrder.entries()) {
-    const hint = `Task ${i + 1} of ${queryOrder.length}`, step = "Part 2 of 2";
-    setProgress(0.15 + 0.83 * (i / queryOrder.length));
-    const row = { query: i + 1, kind: q.kind, design: q.design, feature: q.feature || null, rooms: [], picked: null };
-    if (q.kind === "single") await singleRoom(q, step, hint, row);
-    else if (q.kind === "pair") await pairRooms(q, step, hint, row);
-    else await featureRooms(q, step, hint, row);
-    data.queries.push(row); backup();
+    const hint = `Task ${i + 1} of ${queryOrder.length}`, step = "Part 3 of 3";
+    setProgress(0.25 + 0.73 * (i / queryOrder.length));
+    if (q.kind === "single") await singleRoom(q, step, hint);
+    else if (q.kind === "pair") await pairRooms(q, step, hint);
+    else await featureRooms(q, step, hint);
   }
 }
 
@@ -391,12 +462,6 @@ async function finish() {
   card.append(el("h2", { text: "Almost done" }), el("p", { text: "Is there anything you would like to tell us about the study? For example, was anything unclear?" }), comments);
   await nextButton(card, { label: "Finish" });
   data.comments = comments.value.trim(); data.finishedAt = new Date().toISOString();
-
-  // One record per rated room per query, in the layout simulate() returns in study1_all.jl,
-  // so person(records) can read real participants unchanged.
-  data.records = data.queries.flatMap((q) => q.rooms.map((r) => ({
-    query: q.query, kind: q.kind, room: r.room, role: r.role, read: r.read, before: r.before, after: r.after, picked: q.picked,
-  })));
   backup();
 
   let saved = false;
@@ -415,8 +480,8 @@ async function finish() {
 window.study1 = data;
 if (VIZ) {
   document.body.classList.add("viz");
-  const { createViz } = await import("./study1_viz.js?v=1");
-  viz = createViz(document.querySelector("#vizPanel"), { queries: queryOrder, seed, mapping, onAutofill: (on) => { autofill = on; if (on) currentFill?.(); } });
+  const { createViz } = await import("./study1_viz.js?v=2");
+  viz = createViz(document.querySelector("#vizPanel"), { queries: EVENTS, seed, mapping, onAutofill: (on) => { autofill = on; if (on) currentFill?.(); } });
 }
 if (FULL) {
   await welcome();
@@ -425,5 +490,6 @@ if (FULL) {
   await practice();
   await features();
 }
-await queries();
+await warmup();
+await tasks();
 await finish();
