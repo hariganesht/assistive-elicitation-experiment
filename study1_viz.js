@@ -1,8 +1,14 @@
-// study1_viz.js: the right half of study1.html?viz=1.
+// study1_viz.js: the right half of study1.html?viz=1 (asked for on 8 and 15 Oct).
 // A simulated person goes through the same screens as you. Their true likings are drawn from a
-// Gaussian process over the 256 rooms; their belief updates with the Study 1 formulas (the same as
-// study1_all.jl: gain x surprise for numbers, the probit update for orders, noise growing with the
-// number of rooms shown, sliders = belief mean +- 2 sd with some slider noise).
+// Gaussian process over the 256 rooms; their belief updates with the Study 1 formulas (gain x surprise
+// for numbers, the probit update for orders, noise growing with the number of rooms shown).
+// The panel shows:
+//   - their true liking and their current belief (mean and band), for all rooms
+//   - the covariance of the belief for one room and its 12 neighbours, as it changes
+//   - for one room, how the belief about each of its 12 single-feature neighbours changes, by feature
+//   - kernel controls (and, from 15 Oct, the noise and number-vs-order settings)
+//   - for a preference query (two rooms, or a feature task), how much the belief moves when they take in
+//     a number vs only the order
 import { FEATURES, FEATURE_NAMES } from "./room.js";
 
 const SHORT = {
@@ -10,16 +16,6 @@ const SHORT = {
   "bright-overhead": "ceiling lights", "localized-lamps": "floor lamps", "pendant-cluster": "pendants", chandelier: "chandelier",
   neutral: "off-white", warm: "terracotta", dark: "charcoal", brick: "brick",
   "photo-frames": "pictures", bicycle: "bicycle", "wall-bookshelf": "bookshelves", "hanging-plants": "plants",
-};
-const PRESETS = {
-  M1: { label: "M1 no spread", kind: "pieces", c: 0, w: [0, 0, 0, 0], d: 100 },
-  M2: { label: "M2 flat", kind: "pieces", c: 100, w: [0, 0, 0, 0], d: 0 },
-  M3: { label: "M3 linear additive", kind: "pieces", c: 20, w: [20, 20, 20, 20], d: 0 },
-  M4: { label: "M4 additive (default)", kind: "pieces", c: 20, w: [12.5, 12.5, 12.5, 12.5], d: 30 },
-  M5: { label: "M5 per-feature", kind: "pieces", c: 20, w: [25, 10, 10, 5], d: 20 },
-  M6: { label: "M6b distance, one rho", kind: "distance", s2: 100, rho: [0.6, 0.6, 0.6, 0.6] },
-  M7: { label: "M7 ranking (order only)", kind: "pieces", c: 20, w: [12.5, 12.5, 12.5, 12.5], d: 30, obs: "ranking" },
-  M8: { label: "M8 constant noise", kind: "pieces", c: 20, w: [12.5, 12.5, 12.5, 12.5], d: 30, gamma: 0 },
 };
 
 // ---------------------------------------------------------------- rooms
@@ -75,15 +71,15 @@ function seePair(B, i, j, nv) {
 const copy = (B) => ({ m: Float64Array.from(B.m), S: Float64Array.from(B.S) });
 
 // ---------------------------------------------------------------- the viz
-export function createViz(panel, { queries, seed, mapping, onAutofill }) {
-  const P = { preset: "M4", ...structuredClone(PRESETS.M4), obs: "utility", sigma: 5.8, gamma: 0.5, rep: 4, wn: 0.3, seed: seed || 7 };
+export function createViz(panel, { queries, seed, mapping }) {
+  // Kernel k(x, y) = c + sum_f w_f [x_f = y_f] + d [x = y]; noise variance sigma^2 (1 + gamma (rooms shown - 1)).
+  const P = { c: 20, w: [12.5, 12.5, 12.5, 12.5], d: 30, sigma: 5.8, gamma: 0.5, obs: "utility", seed: seed || 7 };
   const optName = (f, v) => SHORT[mapping[FEATURES[f]][v]];
   const describeRoom = (i) => ROOMS[i].map((v, f) => optName(f, v)).join(", ");
 
-  let K, U, m0, B, cursor, results, view = { qi: 0, phase: "before", nb: null }, focusOverride = null, preview = null;
+  let K, U, B, cursor, results, view = { qi: 0, phase: "before", nb: null }, focusOverride = null;
 
   const kfun = (x, y) => {
-    if (P.kind === "distance") { let v = P.s2; for (let f = 0; f < 4; f++) if (x[f] !== y[f]) v *= P.rho[f]; return v; }
     let v = P.c; for (let f = 0; f < 4; f++) if (x[f] === y[f]) v += P.w[f];
     if (x === y) v += P.d;
     return v;
@@ -100,31 +96,19 @@ export function createViz(panel, { queries, seed, mapping, onAutofill }) {
       L[i * N + j] = i === j ? Math.sqrt(Math.max(s, 1e-12)) : s / L[j * N + j];
     }
     const rand = mulberry32(P.seed * 2654435761);
-    m0 = Float64Array.from({ length: N }, () => 5 * gauss(rand));         // what they expect from the text (scale -50..+50)
+    const m0 = Float64Array.from({ length: N }, () => 5 * gauss(rand));   // what they expect from the text (scale -50..+50)
     const z = Array.from({ length: N }, () => gauss(rand));
-    U = new Float64Array(N);                                                // their true likings
+    U = new Float64Array(N);                                              // their true likings
     for (let i = 0; i < N; i++) { let s = m0[i]; for (let k = 0; k <= i; k++) s += L[i * N + k] * z[k]; U[i] = s; }
     B = { m: Float64Array.from(m0), S: Float64Array.from(K) };
     cursor = 0; results = [];
   }
 
-  // Noise draws for query qi: the same whatever the model, so switching models keeps the same luck.
-  function draws(qi) {
-    const r = mulberry32(P.seed * 7919 + qi * 104729 + 13), g = () => gauss(r);
-    return { eps: [g(), g(), g(), g()], bMid: [g(), g(), g(), g()], bW: [g(), g(), g(), g()], aMid: Array.from({ length: 8 }, g), aW: Array.from({ length: 8 }, g) };
-  }
+  // Noise draws for query qi: the same whatever the settings, so changing a setting keeps the same luck.
+  function draws(qi) { const r = mulberry32(P.seed * 7919 + qi * 104729 + 13); return [gauss(r), gauss(r), gauss(r), gauss(r)]; }
   const sd = (Bx, i) => Math.sqrt(Math.max(Bx.S[i * N + i], 0));
-  function slider(Bx, i, zMid, zW) {
-    const mid = Bx.m[i] + P.rep * zMid, w = Math.max(4 * sd(Bx, i) * Math.exp(P.wn * zW), 1);
-    return [mid - w / 2, mid + w / 2];
-  }
   const roomsOf = (q) => ({ Q: q.shown.map(idxOf), R: [...q.shown, ...q.neighbours].map(idxOf) });
 
-  function beforeAnswers(qi) {
-    const q = queries[qi], d = draws(qi), { Q } = roomsOf(q), out = {};
-    Q.forEach((i, t) => { out[codeOf(i)] = slider(B, i, d.bMid[t], d.bW[t]); });
-    return out;
-  }
   function observe(Bx, q, Q, readings, nv, obs) {
     const ranked = Q.map((i, t) => [i, readings[t]]).sort((a, b) => b[1] - a[1]).map((x) => x[0]);
     if (obs === "utility") {
@@ -135,28 +119,22 @@ export function createViz(panel, { queries, seed, mapping, onAutofill }) {
     } else {
       for (let t = 0; t + 1 < ranked.length; t++) seePair(Bx, ranked[t], ranked[t + 1], nv);
     }
-    return ranked;
   }
   function apply(qi, keepPre) {
-    const q = queries[qi], d = draws(qi), { Q, R } = roomsOf(q), nv = noiseVar(Q.length);
-    const before = beforeAnswers(qi);
+    const q = queries[qi], eps = draws(qi), { Q } = roomsOf(q), nv = noiseVar(Q.length);
     const pre = copy(B);
-    const readings = Q.map((i, t) => U[i] + Math.sqrt(nv) * d.eps[t]);
-    const ranked = observe(B, q, Q, readings, nv, P.obs);
-    const after = {};
-    R.forEach((i, t) => { after[codeOf(i)] = slider(B, i, d.aMid[t], d.aW[t]); });
-    results[qi] = { before, after, readings, nv, picked: codeOf(ranked[0]), ranked, preM: pre.m, preV: Float64Array.from({ length: N }, (_, i) => pre.S[i * N + i]), pre: keepPre ? pre : null };
+    const readings = Q.map((i, t) => U[i] + Math.sqrt(nv) * eps[t]);
+    observe(B, q, Q, readings, nv, P.obs);
+    results[qi] = { readings, nv, preM: pre.m, preV: Float64Array.from({ length: N }, (_, i) => pre.S[i * N + i]), pre: keepPre ? pre : null };
   }
   // Moves under both observation models, from the same belief and the same readings.
   function compare(qi) {
-    const r = results[qi]; if (!r) return null;
-    let pre = r.pre;
-    if (!pre) return null;
+    const r = results[qi]; if (!r || !r.pre) return null;
     const q = queries[qi], { Q, R } = roomsOf(q);
-    const Bu = copy(pre), Br = copy(pre);
+    const Bu = copy(r.pre), Br = copy(r.pre);
     observe(Bu, q, Q, r.readings, r.nv, "utility");
     observe(Br, q, Q, r.readings, r.nv, "ranking");
-    return R.map((i) => ({ i, util: Bu.m[i] - pre.m[i], rank: Br.m[i] - pre.m[i] }));
+    return R.map((i) => ({ i, util: Bu.m[i] - r.pre.m[i], rank: Br.m[i] - r.pre.m[i] }));
   }
 
   // ------------------------------------------------------------ moving through the task
@@ -164,13 +142,8 @@ export function createViz(panel, { queries, seed, mapping, onAutofill }) {
     const { qi, phase } = view, target = phase === "before" ? qi : qi + 1;
     if (cursor > target) build();
     while (cursor < target) { apply(cursor, cursor === qi); cursor++; }
-    preview = phase === "before" ? beforeAnswers(qi) : null;
   }
   function goTo(qi, phase, nb = null) { view = { qi, phase, nb }; focusOverride = null; sync(); render(); }
-  function answer(code, which) {
-    if (which === "before") return preview ? preview[code] : results[view.qi]?.before[code];
-    return results[view.qi]?.after[code];
-  }
   function rebuild() { build(); sync(); render(); }
 
   // ------------------------------------------------------------ the panel
@@ -178,36 +151,27 @@ export function createViz(panel, { queries, seed, mapping, onAutofill }) {
   panel.innerHTML = `
     <div class="vz-head">
       <div class="vz-eyebrow">Simulated person</div>
-      <p class="vz-sub">They see the same screens as you. Their true likings are drawn from the learning model below, and their belief updates with the Study 1 formulas. The faint band on each slider on the left is their answer. <a href="?viz=you">Follow your own answers instead</a>.</p>
-      <div class="vz-controls">
-        <label class="vz-field">Learning model <select id="vzPreset"></select></label>
-        <button class="vz-btn" id="vzNew" type="button">New person</button>
-      </div>
-      <label class="vz-check"><input type="checkbox" id="vzAuto"> Answer as the simulated person (fills the sliders for you)</label>
-      <details class="vz-details"><summary>Kernel and noise settings</summary><div id="vzParams" class="vz-params"></div></details>
+      <p class="vz-sub">They see the same screens as you. Their true likings are drawn from the kernel below, and their belief updates after every screen.</p>
+      <div id="vzParams" class="vz-params"></div>
     </div>
-    <div class="vz-status" id="vzStatus" aria-live="polite"></div>
+    <section class="vz-chart"><h3>True liking and belief, all 256 rooms</h3>
+      <p class="vz-note">Rooms sorted by true liking. Dots: true liking (outlined: seen so far). Line and band: belief, mean ± 2 sd. Click a dot to use that room in the graphs below.</p>
+      <svg id="vzAll" viewBox="0 0 560 200" role="img" aria-label="Belief and true liking for all rooms"></svg></section>
+    <section class="vz-chart"><h3 id="vzCovTitle">Covariance</h3>
+      <p class="vz-note">Covariance of the belief between the room and its 12 neighbours. It changes after every screen; the colour scale is fixed at the starting variance.</p>
+      <svg id="vzCov" viewBox="0 0 360 370" role="img" aria-label="Covariance matrix"></svg></section>
     <section class="vz-chart"><h3 id="vzNbTitle">Room and its 12 neighbours</h3>
       <p class="vz-note">Each row changes one feature of the room. Dashed: belief before this task. Solid: belief now. Black diamond: true liking. Outlined: on screen now.</p>
       <div id="vzNb" class="vz-nbgrid"></div></section>
-    <section class="vz-chart" id="vzCmpBox"><h3>Number or order: how far this task moved each room</h3>
-      <p class="vz-note">Same belief and same impressions, two observation models. Blue: they take in a number for each room (utility). Orange: they take in only which room is better (ranking).</p>
-      <svg id="vzCmp" viewBox="0 0 560 210" role="img" aria-label="Moves under the utility and ranking models"></svg></section>
+    <section class="vz-chart" id="vzCmpBox"><h3>Preference query: number or order</h3>
+      <p class="vz-note">How far this task moved each room, from the same belief and the same impressions. Blue: they take in a number for each room. Orange: they take in only which room is better.</p>
+      <svg id="vzCmp" viewBox="0 0 560 210" role="img" aria-label="Moves under the number and order models"></svg></section>
     <div class="vz-tip" id="vzTip" hidden></div>`;
   const $ = (id) => panel.querySelector("#" + id);
-  const sel = $("vzPreset");
-  for (const [k, p] of Object.entries(PRESETS)) { const o = document.createElement("option"); o.value = k; o.textContent = p.label; sel.append(o); }
-  sel.value = "M4";
-  sel.addEventListener("change", () => {
-    const p = PRESETS[sel.value];
-    Object.assign(P, structuredClone(p), { preset: sel.value, obs: p.obs || "utility", gamma: p.gamma ?? 0.5 });
-    params(); rebuild();
-  });
-  $("vzNew").addEventListener("click", () => { P.seed = Math.floor(Math.random() * 1e6); rebuild(); });
-  $("vzAuto").addEventListener("change", (e) => onAutofill?.(e.target.checked));
 
   function params() {
     const box = $("vzParams"); box.replaceChildren();
+    const head = (t) => { const h = document.createElement("div"); h.className = "vz-phead"; h.textContent = t; box.append(h); };
     const add = (label, get, set, min, max, step) => {
       const row = document.createElement("label"); row.className = "vz-slider";
       const sp = document.createElement("span"); sp.textContent = label;
@@ -217,14 +181,11 @@ export function createViz(panel, { queries, seed, mapping, onAutofill }) {
       inp.addEventListener("change", rebuild);
       row.append(sp, inp, out); box.append(row);
     };
-    if (P.kind === "pieces") {
-      add("c, all rooms", () => P.c, (v) => (P.c = v), 0, 100, 1);
-      FEATURES.forEach((f, k) => add(`w, ${FEATURE_NAMES[f].toLowerCase()}`, () => P.w[k], (v) => (P.w[k] = v), 0, 40, 0.5));
-      add("d, the room alone", () => P.d, (v) => (P.d = v), 0, 100, 1);
-    } else {
-      add("s², variance", () => P.s2, (v) => (P.s2 = v), 20, 200, 1);
-      FEATURES.forEach((f, k) => add(`ρ, ${FEATURE_NAMES[f].toLowerCase()}`, () => P.rho[k], (v) => (P.rho[k] = v), 0.05, 0.95, 0.05));
-    }
+    head("Kernel");
+    add("c, all rooms", () => P.c, (v) => (P.c = v), 0, 100, 1);
+    FEATURES.forEach((f, k) => add(`w, ${FEATURE_NAMES[f].toLowerCase()}`, () => P.w[k], (v) => (P.w[k] = v), 0, 40, 0.5));
+    add("d, the room alone", () => P.d, (v) => (P.d = v), 0, 100, 1);
+    head("Noise and observation");
     add("σ, noise", () => P.sigma, (v) => (P.sigma = v), 1, 20, 0.1);
     add("γ, extra per room", () => P.gamma, (v) => (P.gamma = v), 0, 2, 0.05);
     const obs = document.createElement("label"); obs.className = "vz-slider";
@@ -241,7 +202,7 @@ export function createViz(panel, { queries, seed, mapping, onAutofill }) {
     node.addEventListener("pointermove", (e) => { tip.hidden = false; tip.innerHTML = html; tip.style.left = Math.min(e.clientX + 12, innerWidth - 280) + "px"; tip.style.top = (e.clientY + 12) + "px"; });
     node.addEventListener("pointerleave", () => { tip.hidden = true; });
   }
-  const f1 = (x) => x.toFixed(1), f0 = (x) => x.toFixed(0);
+  const f1 = (x) => x.toFixed(1);
   const onScreen = () => {
     const q = queries[view.qi];
     if (view.phase === "neighbours" && view.nb) return new Set([idxOf(view.nb)]);
@@ -251,33 +212,58 @@ export function createViz(panel, { queries, seed, mapping, onAutofill }) {
   const focus = () => focusOverride ?? idxOf(queries[view.qi].shown[0]);
   // "before" lines: belief before this task (equal to now on the description screen).
   const prevOf = () => (view.phase === "before" ? { m: B.m, v: Float64Array.from({ length: N }, (_, i) => B.S[i * N + i]) } : { m: results[view.qi].preM, v: results[view.qi].preV });
-
-  function status() {
-    const q = queries[view.qi], r = results[view.qi], names = { warmup: "warm-up room", single: "one room", base: "a room seen earlier, seen again", pair: "two rooms", feature: `the original and three versions, varying the ${FEATURE_NAMES[q.feature]?.toLowerCase()}` };
-    const head = `<b>Step ${view.qi + 1} of ${queries.length}</b> · ${names[q.kind]}`;
-    const rng = (x) => `${f0(x[0])} to ${f0(x[1])}`;
-    let body = "";
-    if (view.phase === "before") {
-      body = "They read the description. Nothing has been learned yet; their answer is their current belief, mean ± 2 sd, plus slider noise.<br>" +
-        q.shown.map((c) => { const i = idxOf(c); return `${c}: belief ${f1(B.m[i])} ± ${f1(2 * sd(B, i))}, says ${rng(preview[c])}, true liking ${f1(U[i])}`; }).join("<br>");
-    } else if (view.phase === "see") {
-      const lines = q.shown.map((c, t) => { const i = idxOf(c); return `${c}: felt like ${f1(r.readings[t])}${q.read[t] ? "" : " (already known, not a new reading)"} · belief ${f1(r.preM[i])} → ${f1(B.m[i])} · true ${f1(U[i])}`; });
-      const how = P.obs === "utility" ? "They take in a number for each room." : `They take in only the order: ${r.ranked.map(codeOf).join(" > ")}.`;
-      body = `They see the room${q.shown.length > 1 ? "s" : ""}. Noise variance per room with ${q.shown.length} on screen: ${f1(r.nv)}. ${how}<br>` + lines.join("<br>") +
-        (q.kind === "feature" ? `<br>They pick ${r.picked}.` : "");
-    } else {
-      const i = idxOf(view.nb);
-      body = `They rate a similar room from its description (shares ${sharedN(i, idxOf(q.shown[0]))} of 4 options with ${q.shown[0]}). They never saw it, so any change is generalisation.<br>` +
-        `${view.nb}: belief ${f1(r.preM[i])} → ${f1(B.m[i])} · says ${rng(r.after[view.nb])} · true ${f1(U[i])}`;
-    }
-    $("vzStatus").innerHTML = `${head}<br>${body}`;
-  }
-
   function neighbourRows() {
     const fc = ROOMS[focus()], rows = [{ i: focus(), group: -1 }];
     for (let f = 0; f < 4; f++) for (const v of variants(fc, f)) rows.push({ i: 64 * v[0] + 16 * v[1] + 4 * v[2] + v[3], group: f, label: optName(f, v[f]) });
     return rows;
   }
+
+  function drawAll() {
+    const svg = $("vzAll"); svg.replaceChildren();
+    const W = 560, H = 200, L = 32, R = 6, T = 8, Bt = 22, seen = seenSoFar();
+    const order = [...Array(N).keys()].sort((a, b) => U[a] - U[b]);
+    let lo = Infinity, hi = -Infinity;
+    for (const i of order) { lo = Math.min(lo, U[i], B.m[i] - 2 * sd(B, i)); hi = Math.max(hi, U[i], B.m[i] + 2 * sd(B, i)); }
+    lo = Math.floor(lo / 10) * 10; hi = Math.ceil(hi / 10) * 10;
+    const step = hi - lo > 80 ? 20 : 10;
+    const x = (k) => L + (k + 0.5) * (W - L - R) / N, y = (v) => T + (hi - v) * (H - T - Bt) / (hi - lo);
+    for (let v = lo; v <= hi; v += step) { svg.append(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "var(--line)", "stroke-width": 1 })); svg.append(el("text", { x: L - 5, y: y(v) + 4, "text-anchor": "end", class: "vz-ax" }, v)); }
+    let up = "", dn = "";
+    order.forEach((i, k) => { up += `${x(k)},${y(B.m[i] + 2 * sd(B, i))} `; dn = `${x(k)},${y(B.m[i] - 2 * sd(B, i))} ` + dn; });
+    svg.append(el("polygon", { points: up + dn, fill: "var(--vz-belief-soft)" }));
+    svg.append(el("polyline", { points: order.map((i, k) => `${x(k)},${y(B.m[i])}`).join(" "), fill: "none", stroke: "var(--vz-belief)", "stroke-width": 1.6 }));
+    order.forEach((i, k) => {
+      const s = seen.has(i);
+      svg.append(el("circle", { cx: x(k), cy: y(U[i]), r: s ? 3.2 : 1.7, fill: "var(--vz-truth)", stroke: s ? "var(--ink)" : "none", "stroke-width": 1 }));
+      const hit = el("rect", { x: x(k) - 1.1, y: T, width: 2.2, height: H - T - Bt, fill: "transparent" });
+      hover(hit, `${codeOf(i)}: ${describeRoom(i)}<br>true ${f1(U[i])} · belief ${f1(B.m[i])} ± ${f1(2 * sd(B, i))}`);
+      hit.addEventListener("click", () => { focusOverride = i; drawCov(); drawNeighbours(); });
+      svg.append(hit);
+    });
+    svg.append(el("text", { x: L, y: H - 5, class: "vz-ax" }, "least liked"));
+    svg.append(el("text", { x: W - R, y: H - 5, class: "vz-ax", "text-anchor": "end" }, "most liked"));
+  }
+
+  function drawCov() {
+    const svg = $("vzCov"); svg.replaceChildren();
+    const rows = neighbourRows(), n = rows.length, L = 46, T = 46, cell = (360 - L - 6) / n;
+    let top = 0; for (const r of rows) top = Math.max(top, K[r.i * N + r.i]);
+    $("vzCovTitle").textContent = `Covariance: room ${codeOf(rows[0].i)} and its 12 neighbours`;
+    rows.forEach((r, k) => {
+      const lbl = codeOf(r.i), cx = L + k * cell + cell / 2 + 4;
+      svg.append(el("text", { x: L - 4, y: T + k * cell + cell / 2 + 4, "text-anchor": "end", class: "vz-ax" }, lbl));
+      svg.append(el("text", { x: cx, y: T - 4, class: "vz-ax", transform: `rotate(-60 ${cx} ${T - 4})` }, lbl));
+    });
+    for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) {
+      const i = rows[a].i, j = rows[b].i, c = B.S[i * N + j];
+      const mix = Math.round(Math.min(Math.abs(c) / Math.max(top, 1e-9), 1) * 100);
+      const col = `color-mix(in srgb, ${c >= 0 ? "var(--vz-belief)" : "var(--vz-rank)"} ${mix}%, var(--vz-cell))`;
+      const rect = el("rect", { x: L + b * cell + 1, y: T + a * cell + 1, width: cell - 2, height: cell - 2, rx: 2, fill: col });
+      hover(rect, `${codeOf(i)} with ${codeOf(j)}<br>covariance ${f1(c)} (at the start ${f1(K[i * N + j])})`);
+      svg.append(rect);
+    }
+  }
+
   function drawNeighbours() {
     const box = $("vzNb"); box.replaceChildren();
     const rows = neighbourRows(), prev = prevOf(), shownNow = onScreen();
@@ -315,12 +301,12 @@ export function createViz(panel, { queries, seed, mapping, onAutofill }) {
     const axis = document.createElement("div"); axis.className = "vz-num vz-axisnote"; axis.textContent = `Every graph uses the same axis, ${lo} to ${hi}.`; box.append(axis);
   }
 
+  // Only for preference queries: two rooms, or the feature task's versions.
   function drawCompare() {
     const boxEl = $("vzCmpBox"), svg = $("vzCmp"); svg.replaceChildren();
-    if (view.phase === "before") { boxEl.hidden = true; return; }
-    boxEl.hidden = false;
-    const rows = compare(view.qi); if (!rows) { boxEl.hidden = true; return; }
     const q = queries[view.qi];
+    const rows = view.phase !== "before" && (q.kind === "pair" || q.kind === "feature") ? compare(view.qi) : null;
+    boxEl.hidden = !rows; if (!rows) return;
     const W = 560, H = 210, L = 36, R = 8, T = 12, Bt = 40;
     const ext = Math.max(4, ...rows.map((r) => Math.max(Math.abs(r.util), Math.abs(r.rank))));
     const top = Math.ceil(ext / 4) * 4;
@@ -340,12 +326,12 @@ export function createViz(panel, { queries, seed, mapping, onAutofill }) {
       svg.append(el("text", { x: cx, y: H - Bt + 16, "text-anchor": "middle", class: "vz-ax" }, codeOf(r.i)));
       svg.append(el("text", { x: cx, y: H - Bt + 30, "text-anchor": "middle", class: "vz-lab" }, isShown ? "seen" : `shares ${sharedN(r.i, idxOf(q.shown[0]))}`));
     });
-    if (q.shown.length === 1) svg.append(el("text", { x: W - R, y: T + 10, "text-anchor": "end", class: "vz-lab" }, "One room alone: the order model learns nothing."));
   }
 
-  function render() { status(); drawNeighbours(); drawCompare(); }
+  function render() { drawAll(); drawCov(); drawNeighbours(); drawCompare(); }
 
   params();
   build();
-  return { goTo, answer, picked: () => results[view.qi]?.picked };
+  render();
+  return { goTo };
 }

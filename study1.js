@@ -17,7 +17,6 @@
 // URL options:
 //   ?debug=1   short version (2 warm-up rooms, one task of each kind, no waiting)
 //   ?viz=1     split screen: the task on the left, a simulated person's beliefs on the right
-//   ?viz=you   split screen: the models follow your own answers and predict your next ratings
 //              (starts at the warm-up; add &full=1 to include the introduction)
 //   ?seed=123  fixes the randomisation (and the simulated person in viz mode)
 import { Room, FEATURES, LEVELS, DESCRIPTIONS, FEATURE_NAMES } from "./room.js";
@@ -63,7 +62,6 @@ function pairQuery(t) {
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has("debug");
 const VIZ = params.has("viz");
-const FOLLOW_YOU = params.get("viz") === "you";      // ?viz=you: the models follow your own answers
 const FULL = !VIZ || params.has("full");
 const seed = Number(params.get("seed")) || Math.floor(Math.random() * 2 ** 31);
 function mulberry32(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -142,7 +140,7 @@ function nextButton(card, { label = "Next", minMs = 0, ready = () => true, hint 
 // ---------------------------------------------------------------- the range slider
 // One line from -50 to +50 with two handles, lowest and highest. Press on the line and drag to set the
 // range in one go; afterwards, pressing on the line moves the nearer handle, and the handles can be dragged.
-// prev() shows the person's earlier answer faintly; ghost() shows the simulated person's answer (viz mode).
+// prev() shows the person's earlier answer faintly.
 const fmt = (v) => (v > 0 ? `+${v}` : `${v}`);
 const clampScale = (v) => Math.max(-50, Math.min(50, Math.round(v)));
 const pos = (v) => `${v + 50}%`;
@@ -151,14 +149,12 @@ function rangeSlider(question) {
   const hi = el("input", { type: "range", min: "-50", max: "50", step: "1", value: "0", "aria-label": "highest" });
   const fill = el("div", { class: "fill" });
   const prevBand = el("div", { class: "prev", hidden: "" });
-  const simBand = el("div", { class: "sim", hidden: "" });
-  const track = el("div", { class: "track" }, prevBand, simBand, fill, lo, hi);
+  const track = el("div", { class: "track" }, prevBand, fill, lo, hi);
   const scale = el("div", { class: "scale" }, ...SCALE.map(([v, word], i) =>
     el("span", { class: i === 0 ? "first" : i === SCALE.length - 1 ? "last" : "", style: `left:${pos(v)}` }, el("b", { text: fmt(v) }), el("br"), word)));
   const readout = el("div", { class: "readout" });
   const prevText = el("div", { class: "prev-text", hidden: "" });
-  const simText = el("div", { class: "sim-text", hidden: "" });
-  const node = el("div", { class: "range untouched" }, question ? el("div", { class: "question", text: question }) : "", track, scale, readout, prevText, simText);
+  const node = el("div", { class: "range untouched" }, question ? el("div", { class: "question", text: question }) : "", track, scale, readout, prevText);
   let touched = false, anchor = 0, dragging = false;
   const draw = () => {
     let a = Number(lo.value), b = Number(hi.value);
@@ -186,13 +182,10 @@ function rangeSlider(question) {
     bandEl.hidden = false; bandEl.style.left = pos(a); bandEl.style.width = `${Math.max(b - a, 0.8)}%`;
     textEl.hidden = false; textEl.textContent = `${label}: ${fmt(a)} to ${fmt(b)}`;
   };
-  let simValue = null;
   return {
     node,
     value: () => (touched ? { low: Number(lo.value), high: Number(hi.value) } : null),
     prev(r) { if (r) band(prevBand, prevText, [r.low, r.high], "Your earlier answer"); },
-    ghost(r) { simValue = r; band(simBand, simText, r, "Simulated person"); },
-    fillWith() { if (simValue) setRange(clampScale(simValue[0]), clampScale(simValue[1])); },
   };
 }
 const answered = (...s) => () => (s.every((x) => x.value() !== null) ? true : "Please answer every question by pressing on its line.");
@@ -209,16 +202,10 @@ function slider(card, room, question = QUESTION) {
   const s = rangeSlider(question); s.prev(lastAnswer[room]); card.append(s.node); return s;
 }
 const asRange = (v) => (v ? [v.low, v.high] : null);
-const remember = (room, v) => { if (v) lastAnswer[room] = v; viz?.report?.(room, v); return asRange(v); };
+const remember = (room, v) => { if (v) lastAnswer[room] = v; return asRange(v); };
 
 // ---------------------------------------------------------------- the simulated person (viz mode only)
-let viz = null, autofill = false, currentFill = null;
-function simAnswers(sliders, ranges, extra) {
-  if (!viz) return;
-  sliders.forEach((s, i) => { if (ranges[i]) s.ghost(ranges[i]); });
-  currentFill = () => { sliders.forEach((s) => s.fillWith()); extra?.(); };
-  if (autofill) currentFill();
-}
+let viz = null;
 let eventIndex = -1;
 const nextEvent = () => ++eventIndex;
 
@@ -300,7 +287,6 @@ async function features() {
 function record(ev, kind, rows, picked, onScreen) {
   for (const r of rows) data.records.push({ event: ev + 1, kind, room: r.room, role: r.role, read: r.read, onScreen, before: r.before, after: r.after, picked });
   data.events.push({ event: ev + 1, kind, rows, picked, onScreen }); backup();
-  viz?.recordEvent?.(ev, kind, rows, picked);
 }
 
 // ---------------------------------------------------------------- warm-up
@@ -317,7 +303,6 @@ async function warmup() {
     const room = new Room(roomView(card), options); openRooms.push(room);
     card.append(describe(options), el("p", { class: "hint-line", text: HINT }));
     const s = slider(card, code);
-    simAnswers([s], [viz?.answer(code, "after")]);
     const ms = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(s) });
     record(ev, "warmup", [{ room: code, role: "shown", read: true, before: null, after: remember(code, s.value()), msAfter: ms }], code, 1);
   }
@@ -330,7 +315,6 @@ async function rateNeighbours(q, step, hint, ev, rows) {
     const card = newCard(`${step} · A similar room`);
     card.append(el("h2", { text: "A room with:" }), describe(roomOptions(n)), el("p", { class: "hint-line", text: HINT }));
     const s = slider(card, n);
-    simAnswers([s], [viz?.answer(n, "after")]);
     const ms = await nextButton(card, { ready: answered(s), hint });
     rows.push({ room: n, role: "neighbour", shared: shared(n, q.shown[0]), read: false, before: null, after: remember(n, s.value()), msAfter: ms });
   }
@@ -342,7 +326,6 @@ async function singleRoom(q, step, hint) {
   let card = newCard(step);
   card.append(el("h2", { text: "A room with:" }), describe(options), el("p", { class: "hint-line", text: HINT }));
   let s = slider(card, code);
-  simAnswers([s], [viz?.answer(code, "before")]);
   const msBefore = await nextButton(card, { ready: answered(s), hint, label: "See the room" });
   const before = remember(code, s.value());
 
@@ -351,7 +334,6 @@ async function singleRoom(q, step, hint) {
   const room = new Room(roomView(card), options); openRooms.push(room);
   card.append(describe(options));
   s = slider(card, code);
-  simAnswers([s], [viz?.answer(code, "after")]);
   const msAfter = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(s), hint });
   const rows = [{ room: code, role: "shown", shared: 4, read: true, before, after: remember(code, s.value()), msBefore, msAfter }];
   await rateNeighbours(q, step, hint, ev, rows);
@@ -368,7 +350,6 @@ async function pairRooms(q, step, hint) {
     const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: `Room ${i === 0 ? "A" : "B"}` }), describe(opts[i]));
     grid.append(cell); return slider(cell, code);
   });
-  simAnswers(sliders, q.shown.map((c) => viz?.answer(c, "before")));
   const msBefore = await nextButton(card, { ready: answered(...sliders), hint, label: "See the rooms" });
   const before = sliders.map((s, i) => remember(q.shown[i], s.value()));
 
@@ -380,7 +361,6 @@ async function pairRooms(q, step, hint) {
     const room = new Room(roomView(cell), opts[i]); openRooms.push(room);
     cell.append(describe(opts[i])); grid.append(cell); return slider(cell, code);
   });
-  simAnswers(sliders, q.shown.map((c) => viz?.answer(c, "after")));
   const msAfter = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(...sliders), hint });
   const rows = q.shown.map((code, i) => ({ room: code, role: "shown", shared: shared(code, q.shown[0]), read: true, before: before[i], after: remember(code, sliders[i].value()), msBefore, msAfter }));
   const mids = rows.map((r) => (r.after[0] + r.after[1]) / 2);
@@ -400,7 +380,6 @@ async function featureRooms(q, step, hint) {
   const room0 = new Room(roomView(card), baseOpts); openRooms.push(room0);
   card.append(describe(baseOpts));
   const s0 = slider(card, base);
-  simAnswers([s0], [viz?.answer(base, "after")]);
   const ms0 = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(s0), hint });
   record(ev, "base", [{ room: base, role: "shown", read: true, before: null, after: remember(base, s0.value()), msAfter: ms0 }], base, 1);
 
@@ -414,7 +393,6 @@ async function featureRooms(q, step, hint) {
     const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: `Version ${LETTERS[i]}` }), describe(vOpts[i], [f]));
     grid.append(cell); return slider(cell, code);
   });
-  simAnswers(sliders, versions.map((c) => viz?.answer(c, "before")));
   const msBefore = await nextButton(card, { ready: answered(...sliders), hint, label: "See them" });
   const before = sliders.map((s, i) => remember(versions[i], s.value()));
 
@@ -435,8 +413,6 @@ async function featureRooms(q, step, hint) {
   const choice = el("div", { class: "choices pick" }, el("p", { class: "question", text: "Which of the four do you like best?" }));
   [base, ...versions].forEach((code, i) => choice.append(el("label", {}, el("input", { type: "radio", name: "best", value: code }), i === 0 ? " Original" : ` Version ${LETTERS[i - 1]}`)));
   card.append(choice);
-  simAnswers(sliders, versions.map((c) => viz?.answer(c, "after")),
-    () => { const p = viz.picked(); const box = p && choice.querySelector(`input[value="${p}"]`); if (box) box.checked = true; });
   const picked = () => choice.querySelector("input:checked")?.value ?? null;
   const msAfter = await nextButton(card, { minMs: CONFIG.minRoomViewMs, hint,
     ready: () => (answered(...sliders)() !== true ? answered(...sliders)() : picked() ? true : "Please pick the room you like best.") });
@@ -484,11 +460,8 @@ window.study1 = data;
 if (VIZ) {
   document.body.classList.add("viz");
   const panel = document.querySelector("#vizPanel");
-  if (FOLLOW_YOU) { const { createYou } = await import("./study1_you.js?v=2"); viz = createYou(panel, { queries: EVENTS }); }
-  else {
-    const { createViz } = await import("./study1_viz.js?v=4");
-    viz = createViz(panel, { queries: EVENTS, seed, mapping, onAutofill: (on) => { autofill = on; if (on) currentFill?.(); } });
-  }
+  const { createViz } = await import("./study1_viz.js?v=5");
+  viz = createViz(panel, { queries: EVENTS, seed, mapping });
 }
 if (FULL) {
   await welcome();
