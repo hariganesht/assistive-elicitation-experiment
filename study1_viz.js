@@ -178,7 +178,7 @@ export function createViz(panel, { queries, seed, mapping, onAutofill }) {
   panel.innerHTML = `
     <div class="vz-head">
       <div class="vz-eyebrow">Simulated person</div>
-      <p class="vz-sub">They see the same screens as you. Their true likings are drawn from the learning model below, and their belief updates with the Study 1 formulas. The faint band on each slider on the left is their answer.</p>
+      <p class="vz-sub">They see the same screens as you. Their true likings are drawn from the learning model below, and their belief updates with the Study 1 formulas. The faint band on each slider on the left is their answer. <a href="?viz=you">Follow your own answers instead</a>.</p>
       <div class="vz-controls">
         <label class="vz-field">Learning model <select id="vzPreset"></select></label>
         <button class="vz-btn" id="vzNew" type="button">New person</button>

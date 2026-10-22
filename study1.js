@@ -17,6 +17,7 @@
 // URL options:
 //   ?debug=1   short version (2 warm-up rooms, one task of each kind, no waiting)
 //   ?viz=1     split screen: the task on the left, a simulated person's beliefs on the right
+//   ?viz=you   split screen: the models follow your own answers and predict your next ratings
 //              (starts at the warm-up; add &full=1 to include the introduction)
 //   ?seed=123  fixes the randomisation (and the simulated person in viz mode)
 import { Room, FEATURES, LEVELS, DESCRIPTIONS, FEATURE_NAMES } from "./room.js";
@@ -62,6 +63,7 @@ function pairQuery(t) {
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has("debug");
 const VIZ = params.has("viz");
+const FOLLOW_YOU = params.get("viz") === "you";      // ?viz=you: the models follow your own answers
 const FULL = !VIZ || params.has("full");
 const seed = Number(params.get("seed")) || Math.floor(Math.random() * 2 ** 31);
 function mulberry32(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -207,7 +209,7 @@ function slider(card, room, question = QUESTION) {
   const s = rangeSlider(question); s.prev(lastAnswer[room]); card.append(s.node); return s;
 }
 const asRange = (v) => (v ? [v.low, v.high] : null);
-const remember = (room, v) => { if (v) lastAnswer[room] = v; return asRange(v); };
+const remember = (room, v) => { if (v) lastAnswer[room] = v; viz?.report?.(room, v); return asRange(v); };
 
 // ---------------------------------------------------------------- the simulated person (viz mode only)
 let viz = null, autofill = false, currentFill = null;
@@ -298,6 +300,7 @@ async function features() {
 function record(ev, kind, rows, picked, onScreen) {
   for (const r of rows) data.records.push({ event: ev + 1, kind, room: r.room, role: r.role, read: r.read, onScreen, before: r.before, after: r.after, picked });
   data.events.push({ event: ev + 1, kind, rows, picked, onScreen }); backup();
+  viz?.recordEvent?.(ev, kind, rows, picked);
 }
 
 // ---------------------------------------------------------------- warm-up
@@ -480,8 +483,12 @@ async function finish() {
 window.study1 = data;
 if (VIZ) {
   document.body.classList.add("viz");
-  const { createViz } = await import("./study1_viz.js?v=2");
-  viz = createViz(document.querySelector("#vizPanel"), { queries: EVENTS, seed, mapping, onAutofill: (on) => { autofill = on; if (on) currentFill?.(); } });
+  const panel = document.querySelector("#vizPanel");
+  if (FOLLOW_YOU) { const { createYou } = await import("./study1_you.js?v=1"); viz = createYou(panel, { queries: EVENTS }); }
+  else {
+    const { createViz } = await import("./study1_viz.js?v=3");
+    viz = createViz(panel, { queries: EVENTS, seed, mapping, onAutofill: (on) => { autofill = on; if (on) currentFill?.(); } });
+  }
 }
 if (FULL) {
   await welcome();
