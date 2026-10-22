@@ -15,12 +15,9 @@
 import { FEATURES } from "./room.js";
 
 const MODELS = [
-  { key: "M1", label: "M1 no spread", kp: { c: 0, w: [0, 0, 0, 0], d: 100 }, col: "#b9b5ab" },
-  { key: "M2", label: "M2 flat", kp: { c: 100, w: [0, 0, 0, 0], d: 0 }, col: "#77746c" },
-  { key: "M3", label: "M3 linear additive", kp: { c: 20, w: [20, 20, 20, 20], d: 0 }, col: "#9cc3ef" },
-  { key: "M4", label: "M4 additive", kp: { c: 20, w: [12.5, 12.5, 12.5, 12.5], d: 30 }, col: "#2a78d6" },
-  { key: "M6b", label: "M6b distance", kp: { s2: 100, rho: [0.6, 0.6, 0.6, 0.6] }, col: "#d9822b" },
-  { key: "M7", label: "M7 order only", kp: { c: 20, w: [12.5, 12.5, 12.5, 12.5], d: 30 }, col: "#b4456b", order: true },
+  { key: "M1", label: "M1 nothing spreads", kp: { c: 0, w: [0, 0, 0, 0], d: 100 }, col: "#b9b5ab" },
+  { key: "M4", label: "M4 spreads by shared options", kp: { c: 20, w: [12.5, 12.5, 12.5, 12.5], d: 30 }, col: "#2a78d6" },
+  { key: "M7", label: "M7 only which is better", kp: { c: 20, w: [12.5, 12.5, 12.5, 12.5], d: 30 }, col: "#b4456b", order: true },
 ];
 const SIGMA = 5.8, GAMMA = 0.5;
 const noiseVar = (n) => SIGMA * SIGMA * (1 + GAMMA * (n - 1));

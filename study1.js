@@ -484,9 +484,9 @@ window.study1 = data;
 if (VIZ) {
   document.body.classList.add("viz");
   const panel = document.querySelector("#vizPanel");
-  if (FOLLOW_YOU) { const { createYou } = await import("./study1_you.js?v=1"); viz = createYou(panel, { queries: EVENTS }); }
+  if (FOLLOW_YOU) { const { createYou } = await import("./study1_you.js?v=2"); viz = createYou(panel, { queries: EVENTS }); }
   else {
-    const { createViz } = await import("./study1_viz.js?v=3");
+    const { createViz } = await import("./study1_viz.js?v=4");
     viz = createViz(panel, { queries: EVENTS, seed, mapping, onAutofill: (on) => { autofill = on; if (on) currentFill?.(); } });
   }
 }

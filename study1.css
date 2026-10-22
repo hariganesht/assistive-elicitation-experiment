@@ -112,7 +112,7 @@ body.viz .range .scale span:nth-child(2),body.viz .range .scale span:nth-child(4
 .row-grid.three .description,.row-grid.four .description{min-height:80px}
 
 /* ?viz=you: the models follow your answers. */
-.y-bar{display:grid;grid-template-columns:130px minmax(0,1fr) 44px;gap:8px;align-items:center;font-size:12px;margin:3px 0}
+.y-bar{display:grid;grid-template-columns:190px minmax(0,1fr) 44px;gap:8px;align-items:center;font-size:12px;margin:3px 0}
 .y-bar i{display:block;height:10px;border-radius:3px;min-width:2px}
 .y-bar b{font-variant-numeric:tabular-nums;text-align:right;font-weight:600}
 .y-item{border-top:1px solid var(--line);padding:8px 0 6px}

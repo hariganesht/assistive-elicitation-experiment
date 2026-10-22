@@ -193,12 +193,6 @@ export function createViz(panel, { queries, seed, mapping, onAutofill }) {
     <section class="vz-chart" id="vzCmpBox"><h3>Number or order: how far this task moved each room</h3>
       <p class="vz-note">Same belief and same impressions, two observation models. Blue: they take in a number for each room (utility). Orange: they take in only which room is better (ranking).</p>
       <svg id="vzCmp" viewBox="0 0 560 210" role="img" aria-label="Moves under the utility and ranking models"></svg></section>
-    <section class="vz-chart"><h3>All 256 rooms</h3>
-      <p class="vz-note">Sorted by true liking. Line and band: belief (mean ± 2 sd). Dots: true liking; rooms seen so far are outlined. Click a dot to focus on that room.</p>
-      <svg id="vzAll" viewBox="0 0 560 200" role="img" aria-label="Belief and true liking for all rooms"></svg></section>
-    <section class="vz-chart"><h3>How these rooms go together</h3>
-      <p class="vz-note">Correlation in the belief between the room and its 12 neighbours. Learning about one room moves the others in proportion.</p>
-      <svg id="vzCov" viewBox="0 0 360 370" role="img" aria-label="Correlation matrix"></svg></section>
     <div class="vz-tip" id="vzTip" hidden></div>`;
   const $ = (id) => panel.querySelector("#" + id);
   const sel = $("vzPreset");
@@ -349,52 +343,7 @@ export function createViz(panel, { queries, seed, mapping, onAutofill }) {
     if (q.shown.length === 1) svg.append(el("text", { x: W - R, y: T + 10, "text-anchor": "end", class: "vz-lab" }, "One room alone: the order model learns nothing."));
   }
 
-  function drawAll() {
-    const svg = $("vzAll"); svg.replaceChildren();
-    const W = 560, H = 200, L = 32, R = 6, T = 8, Bt = 22, seen = seenSoFar();
-    const order = [...Array(N).keys()].sort((a, b) => U[a] - U[b]);
-    let lo = Infinity, hi = -Infinity;
-    for (const i of order) { lo = Math.min(lo, U[i], B.m[i] - 2 * sd(B, i)); hi = Math.max(hi, U[i], B.m[i] + 2 * sd(B, i)); }
-    lo = Math.floor(lo / 10) * 10; hi = Math.ceil(hi / 10) * 10;
-    const step = hi - lo > 80 ? 20 : 10;
-    const x = (k) => L + (k + 0.5) * (W - L - R) / N, y = (v) => T + (hi - v) * (H - T - Bt) / (hi - lo);
-    for (let v = lo; v <= hi; v += step) { svg.append(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "var(--line)", "stroke-width": 1 })); svg.append(el("text", { x: L - 5, y: y(v) + 4, "text-anchor": "end", class: "vz-ax" }, v)); }
-    let up = "", dn = "";
-    order.forEach((i, k) => { up += `${x(k)},${y(B.m[i] + 2 * sd(B, i))} `; dn = `${x(k)},${y(B.m[i] - 2 * sd(B, i))} ` + dn; });
-    svg.append(el("polygon", { points: up + dn, fill: "var(--vz-belief-soft)" }));
-    svg.append(el("polyline", { points: order.map((i, k) => `${x(k)},${y(B.m[i])}`).join(" "), fill: "none", stroke: "var(--vz-belief)", "stroke-width": 1.6 }));
-    order.forEach((i, k) => {
-      const s = seen.has(i);
-      svg.append(el("circle", { cx: x(k), cy: y(U[i]), r: s ? 3.2 : 1.7, fill: "var(--vz-truth)", stroke: s ? "var(--ink)" : "none", "stroke-width": 1 }));
-      const hit = el("rect", { x: x(k) - 1.1, y: T, width: 2.2, height: H - T - Bt, fill: "transparent" });
-      hover(hit, `${codeOf(i)}: ${describeRoom(i)}<br>true ${f1(U[i])} · belief ${f1(B.m[i])} ± ${f1(2 * sd(B, i))}`);
-      hit.addEventListener("click", () => { focusOverride = i; drawNeighbours(); drawCov(); });
-      svg.append(hit);
-    });
-    svg.append(el("text", { x: L, y: H - 5, class: "vz-ax" }, "least liked"));
-    svg.append(el("text", { x: W - R, y: H - 5, class: "vz-ax", "text-anchor": "end" }, "most liked"));
-  }
-
-  function drawCov() {
-    const svg = $("vzCov"); svg.replaceChildren();
-    const rows = neighbourRows(), n = rows.length, L = 46, T = 46, cell = (360 - L - 6) / n;
-    rows.forEach((r, k) => {
-      const lbl = codeOf(r.i), cx = L + k * cell + cell / 2 + 4;
-      svg.append(el("text", { x: L - 4, y: T + k * cell + cell / 2 + 4, "text-anchor": "end", class: "vz-ax" }, lbl));
-      svg.append(el("text", { x: cx, y: T - 4, class: "vz-ax", transform: `rotate(-60 ${cx} ${T - 4})` }, lbl));
-    });
-    for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) {
-      const i = rows[a].i, j = rows[b].i;
-      const c = B.S[i * N + j] / Math.sqrt(Math.max(B.S[i * N + i] * B.S[j * N + j], 1e-12));
-      const mix = Math.round(Math.min(Math.abs(c), 1) * 100);
-      const col = `color-mix(in srgb, ${c >= 0 ? "var(--vz-belief)" : "var(--vz-rank)"} ${mix}%, var(--vz-cell))`;
-      const rect = el("rect", { x: L + b * cell + 1, y: T + a * cell + 1, width: cell - 2, height: cell - 2, rx: 2, fill: col });
-      hover(rect, `${codeOf(i)} with ${codeOf(j)}<br>correlation ${c.toFixed(2)}`);
-      svg.append(rect);
-    }
-  }
-
-  function render() { status(); drawNeighbours(); drawCompare(); drawAll(); drawCov(); }
+  function render() { status(); drawNeighbours(); drawCompare(); }
 
   params();
   build();
