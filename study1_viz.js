@@ -4,7 +4,6 @@
 // for numbers, the probit update for orders, noise growing with the number of rooms shown).
 // The panel shows:
 //   - their true liking and their current belief (mean and band), for all rooms
-//   - the covariance of the belief for one room and its 12 neighbours, as it changes
 //   - for one room, how the belief about each of its 12 single-feature neighbours changes, by feature
 //   - kernel controls (and, from 15 Oct, the noise and number-vs-order settings)
 //   - for a preference query (two rooms, or a feature task), how much the belief moves when they take in
@@ -155,11 +154,8 @@ export function createViz(panel, { queries, seed, mapping }) {
       <div id="vzParams" class="vz-params"></div>
     </div>
     <section class="vz-chart"><h3>True liking and belief, all 256 rooms</h3>
-      <p class="vz-note">Rooms sorted by true liking. Dots: true liking (outlined: seen so far). Line and band: belief, mean ± 2 sd. Click a dot to use that room in the graphs below.</p>
+      <p class="vz-note">Rooms sorted by true liking. Dots: true liking (outlined: seen so far). Line and band: belief, mean ± 2 sd. Click a dot to use that room in the graph below.</p>
       <svg id="vzAll" viewBox="0 0 560 200" role="img" aria-label="Belief and true liking for all rooms"></svg></section>
-    <section class="vz-chart"><h3 id="vzCovTitle">Covariance</h3>
-      <p class="vz-note">Covariance of the belief between the room and its 12 neighbours. It changes after every screen; the colour scale is fixed at the starting variance.</p>
-      <svg id="vzCov" viewBox="0 0 360 370" role="img" aria-label="Covariance matrix"></svg></section>
     <section class="vz-chart"><h3 id="vzNbTitle">Room and its 12 neighbours</h3>
       <p class="vz-note">Each row changes one feature of the room. Dashed: belief before this task. Solid: belief now. Black diamond: true liking. Outlined: on screen now.</p>
       <div id="vzNb" class="vz-nbgrid"></div></section>
@@ -237,31 +233,11 @@ export function createViz(panel, { queries, seed, mapping }) {
       svg.append(el("circle", { cx: x(k), cy: y(U[i]), r: s ? 3.2 : 1.7, fill: "var(--vz-truth)", stroke: s ? "var(--ink)" : "none", "stroke-width": 1 }));
       const hit = el("rect", { x: x(k) - 1.1, y: T, width: 2.2, height: H - T - Bt, fill: "transparent" });
       hover(hit, `${codeOf(i)}: ${describeRoom(i)}<br>true ${f1(U[i])} · belief ${f1(B.m[i])} ± ${f1(2 * sd(B, i))}`);
-      hit.addEventListener("click", () => { focusOverride = i; drawCov(); drawNeighbours(); });
+      hit.addEventListener("click", () => { focusOverride = i; drawNeighbours(); });
       svg.append(hit);
     });
     svg.append(el("text", { x: L, y: H - 5, class: "vz-ax" }, "least liked"));
     svg.append(el("text", { x: W - R, y: H - 5, class: "vz-ax", "text-anchor": "end" }, "most liked"));
-  }
-
-  function drawCov() {
-    const svg = $("vzCov"); svg.replaceChildren();
-    const rows = neighbourRows(), n = rows.length, L = 46, T = 46, cell = (360 - L - 6) / n;
-    let top = 0; for (const r of rows) top = Math.max(top, K[r.i * N + r.i]);
-    $("vzCovTitle").textContent = `Covariance: room ${codeOf(rows[0].i)} and its 12 neighbours`;
-    rows.forEach((r, k) => {
-      const lbl = codeOf(r.i), cx = L + k * cell + cell / 2 + 4;
-      svg.append(el("text", { x: L - 4, y: T + k * cell + cell / 2 + 4, "text-anchor": "end", class: "vz-ax" }, lbl));
-      svg.append(el("text", { x: cx, y: T - 4, class: "vz-ax", transform: `rotate(-60 ${cx} ${T - 4})` }, lbl));
-    });
-    for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) {
-      const i = rows[a].i, j = rows[b].i, c = B.S[i * N + j];
-      const mix = Math.round(Math.min(Math.abs(c) / Math.max(top, 1e-9), 1) * 100);
-      const col = `color-mix(in srgb, ${c >= 0 ? "var(--vz-belief)" : "var(--vz-rank)"} ${mix}%, var(--vz-cell))`;
-      const rect = el("rect", { x: L + b * cell + 1, y: T + a * cell + 1, width: cell - 2, height: cell - 2, rx: 2, fill: col });
-      hover(rect, `${codeOf(i)} with ${codeOf(j)}<br>covariance ${f1(c)} (at the start ${f1(K[i * N + j])})`);
-      svg.append(rect);
-    }
   }
 
   function drawNeighbours() {
@@ -328,7 +304,7 @@ export function createViz(panel, { queries, seed, mapping }) {
     });
   }
 
-  function render() { drawAll(); drawCov(); drawNeighbours(); drawCompare(); }
+  function render() { drawAll(); drawNeighbours(); drawCompare(); }
 
   params();
   build();
