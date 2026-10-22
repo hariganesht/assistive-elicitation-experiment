@@ -16,9 +16,9 @@
 //
 // URL options:
 //   ?debug=1   short version (2 warm-up rooms, one task of each kind, no waiting)
-//   ?viz=1     split screen: the task on the left, a simulated person's beliefs on the right
+//   ?viz=1     split screen: the task on the left; on the right, the model follows your answers
 //              (starts at the warm-up; add &full=1 to include the introduction)
-//   ?seed=123  fixes the randomisation (and the simulated person in viz mode)
+//   ?seed=123  fixes the randomisation
 import { Room, FEATURES, LEVELS, DESCRIPTIONS, FEATURE_NAMES } from "./room.js";
 
 // ---------------------------------------------------------------- settings
@@ -140,11 +140,11 @@ function nextButton(card, { label = "Next", minMs = 0, ready = () => true, hint 
 // ---------------------------------------------------------------- the range slider
 // One line from -50 to +50 with two handles, lowest and highest. Press on the line and drag to set the
 // range in one go; afterwards, pressing on the line moves the nearer handle, and the handles can be dragged.
-// prev() shows the person's earlier answer faintly.
+// prev() shows the person's earlier answer faintly. onChange(value) is called as the range changes.
 const fmt = (v) => (v > 0 ? `+${v}` : `${v}`);
 const clampScale = (v) => Math.max(-50, Math.min(50, Math.round(v)));
 const pos = (v) => `${v + 50}%`;
-function rangeSlider(question) {
+function rangeSlider(question, onChange) {
   const lo = el("input", { type: "range", min: "-50", max: "50", step: "1", value: "0", "aria-label": "lowest" });
   const hi = el("input", { type: "range", min: "-50", max: "50", step: "1", value: "0", "aria-label": "highest" });
   const fill = el("div", { class: "fill" });
@@ -162,7 +162,8 @@ function rangeSlider(question) {
     fill.style.left = pos(a); fill.style.width = `${b - a}%`;
     readout.textContent = touched ? (a === b ? `Exactly ${fmt(a)}` : `Lowest ${fmt(a)}  ·  Highest ${fmt(b)}`) : "Press on the line and drag to set your range";
   };
-  const setRange = (p, q) => { lo.value = Math.min(p, q); hi.value = Math.max(p, q); touched = true; node.classList.remove("untouched"); draw(); };
+  const changed = () => { draw(); if (touched) onChange?.({ low: Number(lo.value), high: Number(hi.value) }); };
+  const setRange = (p, q) => { lo.value = Math.min(p, q); hi.value = Math.max(p, q); touched = true; node.classList.remove("untouched"); changed(); };
   const valueAt = (x) => { const box = track.getBoundingClientRect(); return clampScale(-50 + (100 * (x - box.left)) / box.width); };
   track.addEventListener("pointerdown", (e) => {
     if (e.target === lo || e.target === hi) return;               // dragging a handle: the browser does it
@@ -175,7 +176,7 @@ function rangeSlider(question) {
   track.addEventListener("pointermove", (e) => { if (dragging) setRange(anchor, valueAt(e.clientX)); });
   const stop = () => { dragging = false; };
   track.addEventListener("pointerup", stop); track.addEventListener("pointercancel", stop);
-  lo.addEventListener("input", draw); hi.addEventListener("input", draw);
+  lo.addEventListener("input", changed); hi.addEventListener("input", changed);
   draw();
   const band = (bandEl, textEl, r, label) => {
     const a = clampScale(r[0]), b = clampScale(r[1]);
@@ -199,12 +200,12 @@ const LETTERS = ["A", "B", "C"];
 // The latest answer for each room, shown faintly when the room is rated again.
 const lastAnswer = {};
 function slider(card, room, question = QUESTION) {
-  const s = rangeSlider(question); s.prev(lastAnswer[room]); card.append(s.node); return s;
+  const s = rangeSlider(question, (v) => viz?.live(room, v)); s.prev(lastAnswer[room]); card.append(s.node); return s;
 }
 const asRange = (v) => (v ? [v.low, v.high] : null);
 const remember = (room, v) => { if (v) lastAnswer[room] = v; return asRange(v); };
 
-// ---------------------------------------------------------------- the simulated person (viz mode only)
+// ---------------------------------------------------------------- the graphs of your answers (viz mode only)
 let viz = null;
 let eventIndex = -1;
 const nextEvent = () => ++eventIndex;
@@ -412,6 +413,7 @@ async function featureRooms(q, step, hint) {
   });
   const choice = el("div", { class: "choices pick" }, el("p", { class: "question", text: "Which of the four do you like best?" }));
   [base, ...versions].forEach((code, i) => choice.append(el("label", {}, el("input", { type: "radio", name: "best", value: code }), i === 0 ? " Original" : ` Version ${LETTERS[i - 1]}`)));
+  choice.addEventListener("change", (e) => viz?.pick(e.target.value));
   card.append(choice);
   const picked = () => choice.querySelector("input:checked")?.value ?? null;
   const msAfter = await nextButton(card, { minMs: CONFIG.minRoomViewMs, hint,
@@ -460,8 +462,8 @@ window.study1 = data;
 if (VIZ) {
   document.body.classList.add("viz");
   const panel = document.querySelector("#vizPanel");
-  const { createViz } = await import("./study1_viz.js?v=6");
-  viz = createViz(panel, { queries: EVENTS, seed, mapping });
+  const { createViz } = await import("./study1_viz.js?v=7");
+  viz = createViz(panel, { queries: EVENTS, mapping });
 }
 if (FULL) {
   await welcome();
