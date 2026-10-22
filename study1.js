@@ -462,7 +462,7 @@ window.study1 = data;
 if (VIZ) {
   document.body.classList.add("viz");
   const panel = document.querySelector("#vizPanel");
-  const { createViz } = await import("./study1_viz.js?v=7");
+  const { createViz } = await import("./study1_viz.js?v=8");
   viz = createViz(panel, { queries: EVENTS, mapping });
 }
 if (FULL) {

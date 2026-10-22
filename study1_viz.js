@@ -169,15 +169,13 @@ export function createViz(panel, { queries, mapping }) {
   panel.hidden = false;
   panel.innerHTML = `
     <div class="vz-head">
-      <div class="vz-eyebrow">Your answers</div>
-      <p class="vz-sub">The graphs follow your ratings. When you change your mind about a room you see, the model spreads that change to similar rooms using the kernel below.</p>
       <div id="vzParams" class="vz-params"></div>
     </div>
-    <section class="vz-chart"><h3>Your ratings and the model's guess, all 256 rooms</h3>
-      <p class="vz-note">Rooms sorted by the model's guess for them, lowest to highest. Line and band: the model's guess now, ± 2 sd. Black dots: your latest rating. Click a room to use it in the graph below.</p>
+    <section class="vz-chart"><h3>Your ratings and model's guess for all rooms</h3>
+      <p class="vz-note">Rooms sorted by the model's guess for them, lowest to highest. Line and band: the model's guess now, ± 2 sd. Black dots: your latest rating.</p>
       <svg id="vzAll" viewBox="0 0 560 200" role="img" aria-label="Your ratings and the model's guess for all rooms"></svg></section>
     <section class="vz-chart"><h3 id="vzNbTitle">Room and its 12 neighbours</h3>
-      <p class="vz-note">Each row changes one feature of the room. Dashed: the model's guess before this task. Solid: after you saw the room. Black diamond: your answer after seeing. Outlined: on screen now.</p>
+      <p class="vz-note">Each row changes one feature of the room. Dashed: the model's guess before this task. Solid: after you saw the room. Outlined: on screen now.</p>
       <div id="vzNb" class="vz-nbgrid"></div></section>
     <section class="vz-chart" id="vzCmpBox"><h3>Preference query: number or order</h3>
       <p class="vz-note">How far each room moves in this task, from the same starting guesses and your same answers. Blue: you take in a number for each room. Orange: you take in only which room is better. Black diamond: how far you actually moved.</p>
@@ -265,8 +263,8 @@ export function createViz(panel, { queries, mapping }) {
     $("vzNbTitle").textContent = `Room ${codeOf(rows[0].i)} and its 12 neighbours`;
     let lo = Infinity, hi = -Infinity, peak = 0;
     for (const r of rows) {
-      const s1 = Math.max(sdOf(st.S1, r.i), 0.5), s0 = Math.max(sdOf(st.S0, r.i), 0.5), you = yours(codeOf(r.i));
-      lo = Math.min(lo, st.now[r.i] - 3 * s1, st.start[r.i] - 3 * s0, you ?? Infinity); hi = Math.max(hi, st.now[r.i] + 3 * s1, st.start[r.i] + 3 * s0, you ?? -Infinity);
+      const s1 = Math.max(sdOf(st.S1, r.i), 0.5), s0 = Math.max(sdOf(st.S0, r.i), 0.5);
+      lo = Math.min(lo, st.now[r.i] - 3 * s1, st.start[r.i] - 3 * s0); hi = Math.max(hi, st.now[r.i] + 3 * s1, st.start[r.i] + 3 * s0);
       peak = Math.max(peak, 1 / s1, 1 / s0);
     }
     lo = Math.floor(lo / 10) * 10; hi = Math.ceil(hi / 10) * 10;
@@ -283,7 +281,6 @@ export function createViz(panel, { queries, mapping }) {
       svg.append(el("path", { d: path(st.now[i], s1) + `L${x(hi)},${H - Bm}L${x(lo)},${H - Bm}Z`, fill: "var(--vz-belief-soft)", stroke: "none" }));
       svg.append(el("path", { d: path(st.start[i], s0), fill: "none", stroke: "var(--muted)", "stroke-width": 1.2, "stroke-dasharray": "3 3" }));
       svg.append(el("path", { d: path(st.now[i], s1), fill: "none", stroke: "var(--vz-belief)", "stroke-width": 1.8 }));
-      if (you !== null) { const tx = x(you), ty = H - Bm; svg.append(el("path", { d: `M${tx},${ty - 4}L${tx + 4},${ty}L${tx},${ty + 4}L${tx - 4},${ty}Z`, fill: "var(--ink)" })); }
       const mv = st.now[i] - st.start[i], num = document.createElement("div"); num.className = "vz-num";
       num.textContent = `moved ${sgn(mv)} → ${f1(st.now[i])}` + (you !== null ? ` · you: ${f1(you)}` : "");
       cell.append(name, svg, num);
@@ -293,9 +290,6 @@ export function createViz(panel, { queries, mapping }) {
     const lab = (t) => { const d = document.createElement("div"); d.className = "vz-flab"; d.textContent = t; return d; };
     box.append(lab("room"), mini(rows[0], true));
     for (let f = 0; f < 4; f++) { box.append(lab(FEATURE_NAMES[FEATURES[f]])); rows.filter((r) => r.group === f).forEach((r) => box.append(mini(r))); }
-    const note = document.createElement("div"); note.className = "vz-num vz-axisnote";
-    note.textContent = (view.phase !== "before" && !st.ready ? "Rate the room you see and the guesses will move. " : "") + `Every graph uses the same axis, ${lo} to ${hi}.`;
-    box.append(note);
   }
 
   // Only for preference queries (two rooms, or a feature task), once you have rated the rooms you see.
