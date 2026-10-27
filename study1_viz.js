@@ -1,15 +1,15 @@
 // study1_viz.js: the right half of study1.html?viz=1. The graphs follow your own answers.
 //
 // How the model reads your answers (the Study 1 learning model, as in fit5.py / study1_short.jl):
-//   - Start of a task: for a room you have rated, your latest rating. For a room you have not rated, a
-//     guess from your ratings of rooms that share options with it (regression with the kernel below,
-//     slider noise sd 4). This is the "fitted start".
+//   - Start of a task: for a room you have rated, your latest rating. For a room you have not rated, the
+//     average of your ratings from descriptions so far (Zhi-Xuan's baseline prior, 22 Oct; 0 before any).
 //   - After you see a room, number model: your change for the room seen is spread to every room with the
 //     kernel, move(y) = S_yQ S_QQ^-1 (your change); the noise cancels out of this. The uncertainty S
 //     shrinks as in the model, with noise variance sigma^2 (1 + gamma (rooms on screen - 1)).
 //   - Order model: only which room you rated higher (or picked) is used, with the probit update.
 //   - Your answers after seeing are drawn as black marks, to compare with what the model expected.
-// The panel shows (asked for on 8 and 15 Oct): your ratings and the model's guess for all rooms; one room
+// The panel shows (asked for on 8, 15 and 22 Oct): your ratings and the model's guess for all rooms, grouped by
+// how many options they share with the room on screen; one room
 // and its 12 single-feature neighbours; kernel controls (and noise and number-vs-order); and, for a
 // preference query, how far each room moves under the number model vs the order model.
 import { FEATURES, FEATURE_NAMES } from "./room.js";
@@ -20,7 +20,6 @@ const SHORT = {
   neutral: "off-white", warm: "terracotta", dark: "charcoal", brick: "brick",
   "photo-frames": "pictures", bicycle: "bicycle", "wall-bookshelf": "bookshelves", "hanging-plants": "plants",
 };
-const TAU2 = 16;   // slider noise variance (sd 4), used when guessing rooms you have not rated
 
 // ---------------------------------------------------------------- rooms
 const ROOMS = [];
@@ -45,18 +44,6 @@ function invSmall(A, k) {
     for (let r = 0; r < k; r++) if (r !== c) { const f = M[r][c]; for (let j = 0; j < 2 * k; j++) M[r][j] -= f * M[c][j]; }
   }
   return M.map((r) => r.slice(k));
-}
-// Solve A x = b for a symmetric positive definite n x n matrix A (flat array), by Cholesky.
-function solveSPD(A, n, b) {
-  const L = new Float64Array(n * n);
-  for (let i = 0; i < n; i++) for (let j = 0; j <= i; j++) {
-    let s = A[i * n + j]; for (let k = 0; k < j; k++) s -= L[i * n + k] * L[j * n + k];
-    L[i * n + j] = i === j ? Math.sqrt(Math.max(s, 1e-12)) : s / L[j * n + j];
-  }
-  const y = new Float64Array(n);
-  for (let i = 0; i < n; i++) { let s = b[i]; for (let k = 0; k < i; k++) s -= L[i * n + k] * y[k]; y[i] = s / L[i * n + i]; }
-  for (let i = n - 1; i >= 0; i--) { let s = y[i]; for (let k = i + 1; k < n; k++) s -= L[k * n + i] * y[k]; y[i] = s / L[i * n + i]; }
-  return y;
 }
 // Number model, uncertainty: S <- S - S_.Q (S_QQ + nv I)^-1 S_Q.
 function shrink(S, Q, nv) {
@@ -99,25 +86,24 @@ export function createViz(panel, { queries, mapping }) {
     Sb = [K];                                     // Sb[e]: the uncertainty before event e
   }
 
-  // Your latest rating of each room up to event e.
-  function ratings(e, withBefore, withAfter) {
+  // Your latest rating (midpoint) of each room up to event e; with ranges = true, the latest range itself.
+  function ratings(e, withBefore, withAfter, ranges = false) {
     const y = new Map();
     for (let t = 0; t <= e; t++) {
       const h = hist[t];
-      if (t < e || withBefore) for (const [c, v] of Object.entries(h.before)) if (v) y.set(idxOf(c), mid(v));
-      if (t < e || withAfter) for (const [c, v] of Object.entries(h.after)) if (v) y.set(idxOf(c), mid(v));
+      if (t < e || withBefore) for (const [c, v] of Object.entries(h.before)) if (v) y.set(idxOf(c), ranges ? v : mid(v));
+      if (t < e || withAfter) for (const [c, v] of Object.entries(h.after)) if (v) y.set(idxOf(c), ranges ? v : mid(v));
     }
     return y;
   }
-  // Start of event e: your latest rating where there is one; otherwise a guess from your ratings, with the kernel.
+  // Start of event e: your latest rating where there is one; otherwise the average of your ratings from
+  // descriptions so far (the baseline prior from the 22 Oct meeting).
   function startOf(e) {
-    const y = ratings(e, true, false), R = [...y.keys()], n = R.length, m = new Float64Array(N);
-    if (!n) return m;
-    const A = new Float64Array(n * n);
-    for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) A[a * n + b] = K[R[a] * N + R[b]] + (a === b ? TAU2 : 0);
-    const alpha = solveSPD(A, n, R.map((r) => y.get(r)));
-    for (let i = 0; i < N; i++) { let s = 0; for (let j = 0; j < n; j++) s += K[i * N + R[j]] * alpha[j]; m[i] = s; }
-    for (const r of R) m[r] = y.get(r);
+    const text = [];
+    for (let t = 0; t <= e; t++) for (const v of Object.values(hist[t].before)) if (v) text.push(mid(v));
+    const base = text.length ? text.reduce((a, b) => a + b, 0) / text.length : 0;
+    const m = new Float64Array(N).fill(base);
+    for (const [i, v] of ratings(e, true, false)) m[i] = v;
     return m;
   }
   // What event e does to the model, from the start and your answers after seeing. ready = you have rated every room seen.
@@ -138,7 +124,7 @@ export function createViz(panel, { queries, mapping }) {
     if (q.kind === "feature") {
       const win = h.pick ?? [...q.shown].sort((a, b) => val(b) - val(a))[0];
       for (const c of q.shown) if (c !== win) seePair(B, idxOf(win), idxOf(c), nv);
-    } else if (q.kind === "pair") {
+    } else if (q.kind === "pair" || q.kind === "preference") {
       const ranked = [...q.shown].sort((a, b) => val(b) - val(a));
       for (let t = 0; t + 1 < ranked.length; t++) seePair(B, idxOf(ranked[t]), idxOf(ranked[t + 1]), nv);
     }                                             // one room alone: the order model learns nothing
@@ -171,9 +157,9 @@ export function createViz(panel, { queries, mapping }) {
     <div class="vz-head">
       <div id="vzParams" class="vz-params"></div>
     </div>
-    <section class="vz-chart"><h3>Your ratings and model's guess for all rooms</h3>
-      <p class="vz-note">Rooms sorted by the model's guess for them, lowest to highest. Line and band: the model's guess now, ± 2 sd. Black dots: your latest rating.</p>
-      <svg id="vzAll" viewBox="0 0 560 200" role="img" aria-label="Your ratings and the model's guess for all rooms"></svg></section>
+    <section class="vz-chart"><h3 id="vzAllTitle">Your ratings and model's guess for all rooms</h3>
+      <p class="vz-note">Rooms grouped by how many options they share with the room on screen; within a group, sorted by the model's guess. Line and band: the model's guess now, ± 2 sd. Black bars: your latest range.</p>
+      <svg id="vzAll" viewBox="0 0 560 210" role="img" aria-label="Your ratings and the model's guess for all rooms, by options shared"></svg></section>
     <section class="vz-chart"><h3 id="vzNbTitle">Room and its 12 neighbours</h3>
       <p class="vz-note">Each row changes one feature of the room. Dashed: the model's guess before this task. Solid: after you saw the room. Outlined: on screen now.</p>
       <div id="vzNb" class="vz-nbgrid"></div></section>
@@ -231,30 +217,43 @@ export function createViz(panel, { queries, mapping }) {
     return rows;
   }
 
+  // Graph 1, grouped (22 Oct): one panel per number of options shared with the room on screen (4, 3, 2, 1, 0).
   function drawAll(st) {
     const svg = $("vzAll"); svg.replaceChildren();
-    const W = 560, H = 200, L = 32, R = 6, T = 8, Bt = 22, rated = ratings(view.qi, true, true);
-    const order = [...Array(N).keys()].sort((a, b) => st.now[a] - st.now[b]);
+    const W = 560, H = 210, L = 32, R = 4, T = 22, Bt = 8, gap = 8, ref = focus(), ranges = ratings(view.qi, true, true, true);
+    $("vzAllTitle").textContent = `Your ratings and model's guess for all rooms, by options shared with ${codeOf(ref)}`;
+    const groups = [4, 3, 2, 1, 0].map((g) => [...Array(N).keys()].filter((i) => sharedN(i, ref) === g).sort((a, b) => st.now[a] - st.now[b]));
     let lo = -10, hi = 10;
-    for (const i of order) { lo = Math.min(lo, st.now[i] - 2 * sdOf(st.S1, i)); hi = Math.max(hi, st.now[i] + 2 * sdOf(st.S1, i)); }
-    for (const v of rated.values()) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    for (let i = 0; i < N; i++) { lo = Math.min(lo, st.now[i] - 2 * sdOf(st.S1, i)); hi = Math.max(hi, st.now[i] + 2 * sdOf(st.S1, i)); }
+    for (const v of ranges.values()) { lo = Math.min(lo, v.low); hi = Math.max(hi, v.high); }
     lo = Math.floor(lo / 10) * 10; hi = Math.ceil(hi / 10) * 10;
-    const step = hi - lo > 80 ? 20 : 10;
-    const x = (k) => L + (k + 0.5) * (W - L - R) / N, y = (v) => T + (hi - v) * (H - T - Bt) / (hi - lo);
+    const step = hi - lo > 80 ? 20 : 10, y = (v) => T + (hi - v) * (H - T - Bt) / (hi - lo);
     for (let v = lo; v <= hi; v += step) { svg.append(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: v === 0 ? "#a9a59b" : "var(--line)", "stroke-width": 1 })); svg.append(el("text", { x: L - 5, y: y(v) + 4, "text-anchor": "end", class: "vz-ax" }, v)); }
-    let up = "", dn = "";
-    order.forEach((i, k) => { up += `${x(k)},${y(st.now[i] + 2 * sdOf(st.S1, i))} `; dn = `${x(k)},${y(st.now[i] - 2 * sdOf(st.S1, i))} ` + dn; });
-    svg.append(el("polygon", { points: up + dn, fill: "var(--vz-belief-soft)" }));
-    svg.append(el("polyline", { points: order.map((i, k) => `${x(k)},${y(st.now[i])}`).join(" "), fill: "none", stroke: "var(--vz-belief)", "stroke-width": 1.6 }));
-    order.forEach((i, k) => {
-      if (rated.has(i)) svg.append(el("circle", { cx: x(k), cy: y(rated.get(i)), r: 3, fill: "var(--ink)" }));
-      const hit = el("rect", { x: x(k) - 1.1, y: T, width: 2.2, height: H - T - Bt, fill: "transparent", style: "cursor:pointer" });
-      hover(hit, `${codeOf(i)}: ${describeRoom(i)}<br>model's guess ${f1(st.now[i])} ± ${f1(2 * sdOf(st.S1, i))}` + (rated.has(i) ? `<br>your latest rating ${f1(rated.get(i))}` : "<br>not rated yet"));
-      hit.addEventListener("click", () => { focusOverride = i; drawNeighbours(state()); });
-      svg.append(hit);
+    const pw = (W - L - R - gap * 4) / 5;
+    groups.forEach((rooms, gi) => {
+      const x0 = L + gi * (pw + gap), n = rooms.length, x = (k) => x0 + (n === 1 ? pw / 2 : (k + 0.5) * pw / n);
+      svg.append(el("rect", { x: x0, y: T, width: pw, height: H - T - Bt, fill: "none", stroke: "var(--line)" }));
+      svg.append(el("text", { x: x0 + pw / 2, y: T - 8, "text-anchor": "middle", class: "vz-lab" }, `${4 - gi} shared · ${n}`));
+      if (n === 1) {
+        const i = rooms[0], sd2 = 2 * sdOf(st.S1, i);
+        svg.append(el("rect", { x: x(0) - 7, y: y(st.now[i] + sd2), width: 14, height: Math.max(y(st.now[i] - sd2) - y(st.now[i] + sd2), 1), fill: "var(--vz-belief-soft)" }));
+        svg.append(el("line", { x1: x(0) - 9, x2: x(0) + 9, y1: y(st.now[i]), y2: y(st.now[i]), stroke: "var(--vz-belief)", "stroke-width": 2 }));
+      } else {
+        let up = "", dn = "";
+        rooms.forEach((i, k) => { up += `${x(k)},${y(st.now[i] + 2 * sdOf(st.S1, i))} `; dn = `${x(k)},${y(st.now[i] - 2 * sdOf(st.S1, i))} ` + dn; });
+        svg.append(el("polygon", { points: up + dn, fill: "var(--vz-belief-soft)" }));
+        svg.append(el("polyline", { points: rooms.map((i, k) => `${x(k)},${y(st.now[i])}`).join(" "), fill: "none", stroke: "var(--vz-belief)", "stroke-width": 1.5 }));
+      }
+      rooms.forEach((i, k) => {
+        const r = ranges.get(i);
+        if (r) { svg.append(el("line", { x1: x(k), x2: x(k), y1: y(r.high), y2: y(r.low), stroke: "var(--ink)", "stroke-width": 2.2 })); svg.append(el("circle", { cx: x(k), cy: y(mid(r)), r: 2.2, fill: "var(--ink)" })); }
+        const hitW = Math.max(pw / n, 2);
+        const hit = el("rect", { x: x(k) - hitW / 2, y: T, width: hitW, height: H - T - Bt, fill: "transparent", style: "cursor:pointer" });
+        hover(hit, `${codeOf(i)}: ${describeRoom(i)}<br>shares ${4 - gi} options with ${codeOf(ref)}<br>model's guess ${f1(st.now[i])} ± ${f1(2 * sdOf(st.S1, i))}` + (r ? `<br>your latest range ${f1(r.low)} to ${f1(r.high)}` : "<br>not rated yet"));
+        hit.addEventListener("click", () => { focusOverride = i; render(); });
+        svg.append(hit);
+      });
     });
-    svg.append(el("text", { x: L, y: H - 5, class: "vz-ax" }, "lowest guess"));
-    svg.append(el("text", { x: W - R, y: H - 5, class: "vz-ax", "text-anchor": "end" }, "highest guess"));
   }
 
   function drawNeighbours(st) {
@@ -296,7 +295,7 @@ export function createViz(panel, { queries, mapping }) {
   function drawCompare(st) {
     const boxEl = $("vzCmpBox"), svg = $("vzCmp"); svg.replaceChildren();
     const q = queries[view.qi];
-    const show = view.phase !== "before" && (q.kind === "pair" || q.kind === "feature") && st.ready;
+    const show = view.phase !== "before" && (q.kind === "pair" || q.kind === "preference" || q.kind === "feature") && st.ready;
     boxEl.hidden = !show; if (!show) return;
     const S0 = st.S0, num = update(view.qi, S0, st.start, "utility").move, ord = update(view.qi, S0, st.start, "ranking").move;
     const rows = [...q.shown, ...q.neighbours].map((c) => { const i = idxOf(c), you = yours(c); return { i, util: num[i], rank: ord[i], you: you === null ? null : you - st.start[i] }; });

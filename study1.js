@@ -1,23 +1,27 @@
 // Study 1: what do people learn about their own preferences from seeing rooms?
-// Design as of 21 Oct 2026 (changes from the 15 Oct meeting). Same events as the model code.
+// Design as of 28 Oct 2026 (changes from the 22 Oct meeting).
 //
 // Flow:  welcome -> instructions -> comprehension check -> slider practice
-//        -> the options, one screen per feature (4 options each)
-//        -> warm-up: 8 example rooms, seen and rated (builds and measures each person's prior)
-//        -> 20 tasks in a random order:
-//             8 single rooms   rate from text -> see the room, rate again -> rate 3 similar rooms from text
-//             8 feature tasks  see a room seen earlier, rate it -> read 3 versions that change one feature, rate them
-//                              -> see all of them side by side, rate the versions again, pick the best
-//             4 comparisons    two rooms: rate from text -> see both, rate again -> rate 1 similar room
+//        -> the options, one screen per feature (4 options each) -> a short check on the options
+//        -> three blocks, in a random order (one kind of task per block):
+//             single rooms   rate from text -> see the room, rate again -> rate 4 other rooms from text
+//                            (sharing 3, 2, 1 and 0 options with it)
+//             comparisons    see a room, rate it -> read 1 or 2 other rooms, rate them
+//                            -> see them all, including the first room again, rate them again
+//             feature tasks  see a room, rate it -> read 3 versions that change one feature, rate them
+//                            -> see the room with pictures of the three options, rate the versions again, pick the best
 //        -> comments, save
+// The block structure, the comparison task and the feature task's third step follow the 22 Oct meeting:
+// tasks of one kind together, and the same information as in Study 2 (a room already seen, then alternatives).
+// The 8-room warm-up was removed (the tutorial is enough).
 //
 // Ratings are ranges on a -50 (strongly dislike) to +50 (strongly like) scale. When a room is rated again,
 // the earlier answer is shown faintly.
 //
 // URL options:
-//   ?debug=1   short version (2 warm-up rooms, one task of each kind, no waiting)
+//   ?debug=1   short version (one task per block, no waiting)
 //   ?viz=1     split screen: the task on the left; on the right, the model follows your answers
-//              (starts at the warm-up; add &full=1 to include the introduction)
+//              (starts at the first block; add &full=1 to include the introduction)
 //   ?seed=123  fixes the randomisation
 import { Room, FEATURES, LEVELS, DESCRIPTIONS, FEATURE_NAMES } from "./room.js";
 
@@ -27,6 +31,14 @@ const CONFIG = {
   completionUrl: "",       // if set, a link back to the recruitment site is shown at the end
   minFeatureViewMs: 5000,  // each feature screen must be looked at for at least this long
   minRoomViewMs: 3000,     // each screen with room images must be looked at for at least this long
+  // Tasks per block. To be fixed after the pilot (22 Oct). At most 4 single, 4 comparison, 8 feature.
+  counts: { single: 4, preference: 4, feature: 8 },
+  prefAlternatives: [1, 1, 2, 2],  // other rooms per comparison task: 1 = two rooms in all, 2 = three rooms
+  featureStep3: "options",         // "options": the original room and pictures of the three options;
+                                   // "rooms": the original room and the three changed rooms in full
+  featurePick: true,               // feature tasks end with "which do you like best?"
+  blockOrder: "random",            // "random", or a fixed order such as "preference,feature,single"
+  optionCheck: true,               // after the options screens, name one option per feature
 };
 const QUESTION = "How much do you think you like this room?";
 const HINT = "Give the lowest and highest rating you think you could end up giving it.";
@@ -34,28 +46,31 @@ const SCALE = [[-50, "Strongly dislike"], [-25, "Dislike"], [0, "Neutral"], [25,
 
 // Rooms are written as option labels 1-4 for (furniture, lighting, wall, decor). Which real option
 // is "1", "2", ... is shuffled for each participant below.
-const SEEN = ["1111", "1223", "2343", "2431", "3312", "3424", "4144", "4232"];
-const OA16 = ["1111", "1223", "1334", "1442", "2122", "2214", "2343", "2431", "3133", "3241", "3312", "3424", "4144", "4232", "4321", "4413"];
-// Warm-up rooms: each option appears twice, any two share at most one option, none appears in the tasks.
-const WARMUP = ["1444", "2332", "3123", "4211", "1313", "2224", "3431", "4142"];
+// Each set of 4 rooms uses every option once; no room is used in two blocks.
+const SINGLE_ROOMS = ["1111", "2343", "3424", "4232"];
+const PREF_ROOMS = ["1334", "2122", "3241", "4413"];
+const FEATURE_ROOMS = ["1223", "2431", "3312", "4144", "1442", "2214", "3133", "4321"];   // each option twice
 
 // The room `code` moved on by `step` options in the features `feats` (0-based). Same as shift() in Julia.
 function change(code, feats, step) { return code.split("").map((d, f) => (feats.includes(f) ? String(((Number(d) - 1 + step) % 4) + 1) : d)).join(""); }
 const shared = (a, b) => [...a].filter((d, i) => d === b[i]).length;
 
-// The 20 tasks, in design order. t is 0-based.
+// Tasks in design order. t is 0-based.
 function singleQuery(code, t) {
   const f = t % 4, g = (k) => (f + k) % 4;
-  return { kind: "single", design: t + 1, shown: [code], neighbours: [change(code, [f], 1), change(code, [g(1), g(2)], 2), change(code, [f, g(1), g(2)], 3)] };
+  return { kind: "single", design: t + 1, shown: [code],
+    neighbours: [change(code, [f], 1), change(code, [g(1), g(2)], 2), change(code, [f, g(1), g(2)], 3), change(code, [0, 1, 2, 3], 2)] };
+}
+// A comparison: the original room, then 1 or 2 other rooms, each sharing 2 options with it.
+function prefQuery(code, t) {
+  const f = t % 4, g = (k) => (f + k) % 4, k = CONFIG.prefAlternatives[t % CONFIG.prefAlternatives.length];
+  const alternatives = [change(code, [f, g(1)], 1), change(code, [g(2), g(3)], 1)].slice(0, k);
+  return { kind: "preference", design: t + 1, original: code, alternatives, shown: [code, ...alternatives] };
 }
 function featureQuery(code, t) {
   const f = t % 4;
   const variants = [1, 2, 3, 4].filter((v) => String(v) !== code[f]).map((v) => code.slice(0, f) + v + code.slice(f + 1));
-  return { kind: "feature", design: t + 1, feature: FEATURES[f], f, base: code, variants, shown: [code, ...variants], neighbours: [] };
-}
-function pairQuery(t) {
-  const a = OA16[2 * t], b = OA16[2 * t + 1];
-  return { kind: "pair", design: t + 1, shown: [a, b], neighbours: [change(a, [t % 4], 1)] };
+  return { kind: "feature", design: t + 1, feature: FEATURES[f], f, base: code, variants, shown: [code, ...variants] };
 }
 
 // ---------------------------------------------------------------- participant and randomisation
@@ -71,41 +86,37 @@ function shuffle(list) { const a = [...list]; for (let i = a.length - 1; i > 0; 
 const mapping = Object.fromEntries(FEATURES.map((f) => [f, shuffle(LEVELS[f])]));
 const roomOptions = (code) => Object.fromEntries(FEATURES.map((f, i) => [f, mapping[f][Number(code[i]) - 1]]));
 
-// Random order, except that each feature task comes after the single task that showed its base room.
-function makeOrder() {
-  let all = [...SEEN.map(singleQuery), ...SEEN.map(featureQuery), ...[0, 1, 2, 3].map(pairQuery)];
-  if (DEBUG) all = [all[0], all[8], all[16]];
-  const order = shuffle(all);
-  for (const q of order.filter((x) => x.kind === "feature")) {
-    const iSingle = order.findIndex((x) => x.kind === "single" && x.shown[0] === q.base);
-    const iFeat = order.indexOf(q);
-    if (iSingle > iFeat) {
-      order.splice(iFeat, 1);
-      const at = iSingle + Math.floor(random() * (order.length - iSingle + 1));   // anywhere after the single task
-      order.splice(Math.max(at, iSingle), 0, q);
-    }
-  }
-  return order;
+// Blocks: one kind of task each, tasks in a random order within the block, blocks in a random order.
+const BLOCK_KINDS = ["single", "preference", "feature"];
+function makeBlocks() {
+  const n = (kind) => (DEBUG ? 1 : CONFIG.counts[kind]);
+  const tasks = {
+    single: shuffle(SINGLE_ROOMS.map(singleQuery)).slice(0, n("single")),
+    preference: shuffle(PREF_ROOMS.map(prefQuery)).slice(0, n("preference")),
+    feature: shuffle(FEATURE_ROOMS.map(featureQuery)).slice(0, n("feature")),
+  };
+  const order = CONFIG.blockOrder === "random" ? shuffle(BLOCK_KINDS) : CONFIG.blockOrder.split(",").map((x) => x.trim());
+  return order.filter((kind) => tasks[kind]?.length).map((kind) => ({ kind, tasks: tasks[kind] }));
 }
-const warmupOrder = shuffle(WARMUP).slice(0, DEBUG ? 2 : WARMUP.length);
-const queryOrder = makeOrder();
+const blocks = makeBlocks();
 
-// The same sequence as "events" (what is on screen, what gives a new impression), for the simulated person
-// and for the model code: a feature task is two events, the base room seen again and then the versions.
-const EVENTS = [
-  ...warmupOrder.map((x) => ({ kind: "warmup", shown: [x], read: [true], neighbours: [] })),
-  ...queryOrder.flatMap((q) => q.kind === "feature"
-    ? [{ kind: "base", shown: [q.base], read: [true], neighbours: [] },
-       { kind: "feature", feature: q.feature, shown: q.shown, read: [false, true, true, true], neighbours: [] }]
-    : [{ kind: q.kind, shown: q.shown, read: q.shown.map(() => true), neighbours: q.neighbours }]),
-];
+// The same sequence as "events" (what is on screen, what gives a new impression), for the graphs and the model
+// code. A comparison or a feature task is two events: the first room on its own, then the rest of the task,
+// where the first room is on screen again but is not a new impression (read = false).
+const EVENTS = blocks.flatMap((b) => b.tasks.flatMap((q) => {
+  if (q.kind === "single") return [{ kind: "single", block: b.kind, shown: q.shown, read: [true], neighbours: q.neighbours }];
+  const first = q.shown[0], rest = q.shown.slice(1);
+  return [{ kind: "base", block: b.kind, shown: [first], read: [true], neighbours: [] },
+          { kind: q.kind, block: b.kind, feature: q.feature, shown: q.shown, read: [false, ...rest.map(() => true)], neighbours: [] }];
+}));
 
 const data = {
-  study: "study1", version: 4, seed, debug: DEBUG, viz: VIZ, config: CONFIG, scale: [-50, 50],
+  study: "study1", version: 5, seed, debug: DEBUG, viz: VIZ, config: CONFIG, scale: [-50, 50],
   participant: params.get("PROLIFIC_PID") || params.get("pid") || `anon-${seed}`,
   urlParams: Object.fromEntries(params), userAgent: navigator.userAgent,
   startedAt: new Date().toISOString(), mapping,
-  practice: null, check: [], features: [], events: [], records: [], comments: "", finishedAt: null,
+  blockOrder: blocks.map((b) => b.kind),
+  practice: null, check: [], features: [], optionCheck: [], events: [], records: [], comments: "", finishedAt: null,
 };
 const backupKey = `study1-${data.participant}`;
 function backup() { try { localStorage.setItem(backupKey, JSON.stringify(data)); } catch (e) { /* carry on */ } }
@@ -194,6 +205,10 @@ function describe(options, only = FEATURES) {
   return el("ul", { class: "description" }, ...only.map((f) =>
     el("li", {}, el("span", { class: "feature", text: FEATURE_NAMES[f] }), el("span", { text: DESCRIPTIONS[options[f]] }))));
 }
+function describeText(options) {
+  const parts = FEATURES.map((f) => DESCRIPTIONS[options[f]]);
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
 function roomView(parent) { const v = el("div", { class: "room-view" }); parent.append(v); return v; }
 const LETTERS = ["A", "B", "C"];
 
@@ -262,14 +277,15 @@ async function practice() {
   data.practice = { ...s.value(), ms };
 }
 
+const PARTS = 1 + blocks.length;   // part 1: the options; then one part per block
 async function features() {
-  const intro = newCard("Part 1 of 3");
+  const intro = newCard(`Part 1 of ${PARTS}`);
   intro.append(el("h2", { text: "The choices" }),
     el("p", { text: "First you will see the four choices for each part of the room, shown in a plain grey room. Please look at them carefully. There is nothing to answer." }));
   await nextButton(intro);
   for (const [i, f] of shuffle(FEATURES).entries()) {
     setProgress(0.03 + 0.1 * (i / 4));
-    const card = newCard(`Part 1 of 3 · ${i + 1} of 4`, { wide: true });
+    const card = newCard(`Part 1 of ${PARTS} · ${i + 1} of 4`, { wide: true });
     card.append(el("h2", { text: `Here are the four kinds of ${FEATURE_NAMES[f].toLowerCase()}` }));
     const grid = el("div", { class: "row-grid" }); card.append(grid);
     const order = shuffle(LEVELS[f]);
@@ -283,30 +299,38 @@ async function features() {
   }
 }
 
-// ---------------------------------------------------------------- recording
-// One record per rated room per event, in the layout the model code reads (fromrecords in study1_short.jl).
-function record(ev, kind, rows, picked, onScreen) {
-  for (const r of rows) data.records.push({ event: ev + 1, kind, room: r.room, role: r.role, read: r.read, onScreen, before: r.before, after: r.after, picked });
-  data.events.push({ event: ev + 1, kind, rows, picked, onScreen }); backup();
+// A short check that the options were looked at (people skimmed these screens on 15 Oct): one option per feature,
+// shown on its own; which one is it? A wrong answer is corrected and the next question follows.
+async function optionCheck() {
+  for (const [i, f] of shuffle(FEATURES).entries()) {
+    const option = LEVELS[f][Math.floor(random() * 4)];
+    const card = newCard(`Part 1 of ${PARTS} · Check ${i + 1} of 4`);
+    card.append(el("h2", { text: `Which kind of ${FEATURE_NAMES[f].toLowerCase()} is this?` }));
+    const room = new Room(roomView(card)); room.showOption(f, option); openRooms.push(room);
+    const box = el("div", { class: "choices" });
+    for (const o of shuffle(LEVELS[f])) box.append(el("label", {}, el("input", { type: "radio", name: "opt", value: o }), ` ${DESCRIPTIONS[o]}`));
+    card.append(box);
+    const pick = () => box.querySelector("input:checked")?.value ?? null;
+    const ms = await nextButton(card, { ready: () => (pick() ? true : "Please choose one.") });
+    const ok = pick() === option;
+    data.optionCheck.push({ feature: f, option, answer: pick(), ok, ms }); backup();
+    if (!ok) {
+      const again = newCard(`Part 1 of ${PARTS} · Check ${i + 1} of 4`);
+      again.append(el("p", { text: `Not quite: that was ${DESCRIPTIONS[option]}.` }));
+      const r2 = new Room(roomView(again)); r2.showOption(f, option); openRooms.push(r2);
+      await nextButton(again);
+    }
+  }
 }
 
-// ---------------------------------------------------------------- warm-up
-async function warmup() {
-  const intro = newCard("Part 2 of 3");
-  intro.append(el("h2", { text: "Some example rooms" }),
-    el("p", { text: `To start, here are ${warmupOrder.length} example rooms. For each one, look at it and say how much you think you like it.` }));
-  await nextButton(intro);
-  for (const [i, code] of warmupOrder.entries()) {
-    setProgress(0.13 + 0.1 * (i / warmupOrder.length));
-    const ev = nextEvent(); viz?.goTo(ev, "see");
-    const options = roomOptions(code);
-    const card = newCard(`Part 2 of 3 · Example ${i + 1} of ${warmupOrder.length}`);
-    const room = new Room(roomView(card), options); openRooms.push(room);
-    card.append(describe(options), el("p", { class: "hint-line", text: HINT }));
-    const s = slider(card, code);
-    const ms = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(s) });
-    record(ev, "warmup", [{ room: code, role: "shown", read: true, before: null, after: remember(code, s.value()), msAfter: ms }], code, 1);
-  }
+// ---------------------------------------------------------------- recording
+// One record per rated room per event, in the layout the model code reads (fromrecords in study1_short.jl).
+// Roles: "shown" (a new impression on this screen), "original" (the first room of a comparison or feature task,
+// on screen again), "neighbour" (rated from text after a single room).
+function record(ev, kind, rows, picked, onScreen) {
+  const block = EVENTS[ev]?.block ?? kind;
+  for (const r of rows) data.records.push({ event: ev + 1, block, kind, room: r.room, role: r.role, read: r.read, onScreen, before: r.before, after: r.after, picked });
+  data.events.push({ event: ev + 1, block, kind, rows, picked, onScreen }); backup();
 }
 
 // ---------------------------------------------------------------- the three kinds of task
@@ -319,6 +343,21 @@ async function rateNeighbours(q, step, hint, ev, rows) {
     const ms = await nextButton(card, { ready: answered(s), hint });
     rows.push({ room: n, role: "neighbour", shared: shared(n, q.shown[0]), read: false, before: null, after: remember(n, s.value()), msAfter: ms });
   }
+}
+
+// The first room of a comparison or feature task: seen as an image, rated once.
+async function firstRoom(code, step, hint, heading) {
+  const options = roomOptions(code), ev = nextEvent();
+  viz?.goTo(ev, "see");
+  const card = newCard(step);
+  card.append(el("h2", { text: heading }));
+  const room = new Room(roomView(card), options); openRooms.push(room);
+  card.append(describe(options), el("p", { class: "hint-line", text: HINT }));
+  const s = slider(card, code);
+  const ms = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(s), hint });
+  const after = remember(code, s.value());
+  record(ev, "base", [{ room: code, role: "shown", read: true, before: null, after, msAfter: ms }], code, 1);
+  return after;
 }
 
 async function singleRoom(q, step, hint) {
@@ -341,32 +380,45 @@ async function singleRoom(q, step, hint) {
   record(ev, "single", rows, code, 1);
 }
 
-async function pairRooms(q, step, hint) {
-  const opts = q.shown.map(roomOptions), ev = nextEvent();
-  viz?.goTo(ev, "before");
-  let card = newCard(step, { wide: true });
-  card.append(el("h2", { text: "Two rooms" }), el("p", { class: "hint-line", text: HINT }));
-  let grid = el("div", { class: "row-grid two" }); card.append(grid);
-  let sliders = q.shown.map((code, i) => {
-    const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: `Room ${i === 0 ? "A" : "B"}` }), describe(opts[i]));
+async function preferenceTask(q, step, hint) {
+  const orig = q.original, alts = q.alternatives, k = alts.length;
+  const origOpts = roomOptions(orig), altOpts = alts.map(roomOptions);
+  const label = (i) => (k === 1 ? "The other room" : `Room ${LETTERS[i]}`);
+
+  // 1. One room, as an image.
+  const first = await firstRoom(orig, step, hint, "A room");
+
+  // 2. The other room(s), as text only, all at once.
+  const ev = nextEvent(); viz?.goTo(ev, "before");
+  let card = newCard(`${step} · ${k === 1 ? "Another room" : "Other rooms"}`, { wide: k > 1 });
+  card.append(el("h2", { text: k === 1 ? "Here is another room" : `Here are ${k} other rooms` }),
+    el("p", { class: "hint-line", text: `For comparison, the room you just rated had ${describeText(origOpts)}.` }),
+    el("p", { class: "hint-line", text: HINT }));
+  let grid = el("div", { class: k === 1 ? "" : "row-grid two" }); card.append(grid);
+  let sliders = alts.map((code, i) => {
+    const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: label(i) }), describe(altOpts[i]));
     grid.append(cell); return slider(cell, code);
   });
-  const msBefore = await nextButton(card, { ready: answered(...sliders), hint, label: "See the rooms" });
-  const before = sliders.map((s, i) => remember(q.shown[i], s.value()));
+  const msBefore = await nextButton(card, { ready: answered(...sliders), hint, label: k === 1 ? "See it" : "See them" });
+  const before = sliders.map((s, i) => remember(alts[i], s.value()));
 
+  // 3. All of them as images, the first room included; every room rated again.
   viz?.goTo(ev, "see");
   card = newCard(`${step} · The rooms`, { wide: true });
-  grid = el("div", { class: "row-grid two" }); card.append(grid);
-  sliders = q.shown.map((code, i) => {
-    const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: `Room ${i === 0 ? "A" : "B"}` }));
-    const room = new Room(roomView(cell), opts[i]); openRooms.push(room);
-    cell.append(describe(opts[i])); grid.append(cell); return slider(cell, code);
-  });
-  const msAfter = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(...sliders), hint });
-  const rows = q.shown.map((code, i) => ({ room: code, role: "shown", shared: shared(code, q.shown[0]), read: true, before: before[i], after: remember(code, sliders[i].value()), msBefore, msAfter }));
+  card.append(el("h2", { text: k === 1 ? "The two rooms" : `The ${k + 1} rooms` }), el("p", { class: "hint-line", text: HINT }));
+  grid = el("div", { class: `row-grid ${k === 1 ? "two" : "three"}` }); card.append(grid);
+  const cellFor = (code, opts, name) => {
+    const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: name }));
+    const room = new Room(roomView(cell), opts); openRooms.push(room);
+    cell.append(describe(opts)); grid.append(cell); return slider(cell, code);
+  };
+  const sOrig = cellFor(orig, origOpts, "The first room");
+  sliders = alts.map((code, i) => cellFor(code, altOpts[i], label(i)));
+  const msAfter = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(sOrig, ...sliders), hint });
+  const rows = [{ room: orig, role: "original", shared: 4, read: false, before: first, after: remember(orig, sOrig.value()), msAfter },
+    ...alts.map((code, i) => ({ room: code, role: "shown", shared: shared(code, orig), read: true, before: before[i], after: remember(code, sliders[i].value()), msBefore, msAfter }))];
   const mids = rows.map((r) => (r.after[0] + r.after[1]) / 2);
-  await rateNeighbours(q, step, hint, ev, rows);
-  record(ev, "pair", rows, q.shown[mids[1] > mids[0] ? 1 : 0], 2);    // picked: the one rated higher after seeing both
+  record(ev, "preference", rows, rows[mids.indexOf(Math.max(...mids))].room, k + 1);   // picked: the one rated highest
 }
 
 async function featureRooms(q, step, hint) {
@@ -374,19 +426,12 @@ async function featureRooms(q, step, hint) {
   const base = q.base, baseOpts = roomOptions(base);
   const versions = shuffle(q.variants), vOpts = versions.map(roomOptions);
 
-  // 1. The base room again, as an image.
-  let ev = nextEvent(); viz?.goTo(ev, "see");
-  let card = newCard(step);
-  card.append(el("h2", { text: "A room you saw earlier" }));
-  const room0 = new Room(roomView(card), baseOpts); openRooms.push(room0);
-  card.append(describe(baseOpts));
-  const s0 = slider(card, base);
-  const ms0 = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(s0), hint });
-  record(ev, "base", [{ room: base, role: "shown", read: true, before: null, after: remember(base, s0.value()), msAfter: ms0 }], base, 1);
+  // 1. One room, as an image.
+  await firstRoom(base, step, hint, "A room");
 
   // 2. Three versions with a different option for one feature, as text.
-  ev = nextEvent(); viz?.goTo(ev, "before");
-  card = newCard(`${step} · Three versions`, { wide: true });
+  const ev = nextEvent(); viz?.goTo(ev, "before");
+  let card = newCard(`${step} · Three versions`, { wide: true });
   card.append(el("h2", { text: `Three versions of this room with different ${fname}` }),
     el("p", { text: "Everything else stays the same:" }), describe(baseOpts, fixed), el("p", { class: "hint-line", text: HINT }));
   let grid = el("div", { class: "row-grid three" }); card.append(grid);
@@ -397,42 +442,65 @@ async function featureRooms(q, step, hint) {
   const msBefore = await nextButton(card, { ready: answered(...sliders), hint, label: "See them" });
   const before = sliders.map((s, i) => remember(versions[i], s.value()));
 
-  // 3. All of them side by side: rate the versions again and pick the best.
+  // 3. The original room again, with pictures of the three options (or, with featureStep3 = "rooms", the three
+  //    changed rooms in full). The versions are rated again; then, optionally, the best of the four is picked.
   viz?.goTo(ev, "see");
+  const asOptions = CONFIG.featureStep3 === "options";
   card = newCard(`${step} · The versions`, { wide: true });
-  card.append(el("h2", { text: `The original room and three versions with different ${fname}` }));
+  card.append(el("h2", { text: asOptions ? `The room, and what the three other kinds of ${fname} look like` : `The original room and three versions with different ${fname}` }),
+    el("p", { class: "hint-line", text: asOptions ? `Each version is the room on the left with that ${fname} instead. Rate each version again.` : "Rate each version again." }));
   grid = el("div", { class: "row-grid four" }); card.append(grid);
   const orig = el("div", { class: "cell original" }, el("div", { class: "room-label", text: "Original" }));
   const r0 = new Room(roomView(orig), baseOpts); openRooms.push(r0);
-  orig.append(describe(baseOpts, [f]), el("p", { class: "hint-line", text: "You just rated this room." }));
+  orig.append(describe(baseOpts, [f]), el("p", { class: "hint-line", text: "You rated this room." }));
   grid.append(orig);
   sliders = versions.map((code, i) => {
     const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: `Version ${LETTERS[i]}` }));
-    const room = new Room(roomView(cell), vOpts[i]); openRooms.push(room);
+    const room = new Room(roomView(cell)); openRooms.push(room);
+    if (asOptions) room.showOption(f, vOpts[i][f]); else room.set(vOpts[i]);
     cell.append(describe(vOpts[i], [f])); grid.append(cell); return slider(cell, code, "");
   });
-  const choice = el("div", { class: "choices pick" }, el("p", { class: "question", text: "Which of the four do you like best?" }));
-  [base, ...versions].forEach((code, i) => choice.append(el("label", {}, el("input", { type: "radio", name: "best", value: code }), i === 0 ? " Original" : ` Version ${LETTERS[i - 1]}`)));
-  choice.addEventListener("change", (e) => viz?.pick(e.target.value));
-  card.append(choice);
-  const picked = () => choice.querySelector("input:checked")?.value ?? null;
+  let picked = () => null;
+  if (CONFIG.featurePick) {
+    const choice = el("div", { class: "choices pick" }, el("p", { class: "question", text: "Which of the four do you like best?" }));
+    [base, ...versions].forEach((code, i) => choice.append(el("label", {}, el("input", { type: "radio", name: "best", value: code }), i === 0 ? " Original" : ` Version ${LETTERS[i - 1]}`)));
+    choice.addEventListener("change", (e) => viz?.pick(e.target.value));
+    card.append(choice);
+    picked = () => choice.querySelector("input:checked")?.value ?? null;
+  }
   const msAfter = await nextButton(card, { minMs: CONFIG.minRoomViewMs, hint,
-    ready: () => (answered(...sliders)() !== true ? answered(...sliders)() : picked() ? true : "Please pick the room you like best.") });
+    ready: () => (answered(...sliders)() !== true ? answered(...sliders)() : !CONFIG.featurePick || picked() ? true : "Please pick the room you like best.") });
   const rows = versions.map((code, i) => ({ room: code, role: "shown", shared: 3, read: true, position: LETTERS[i], before: before[i], after: remember(code, sliders[i].value()), msBefore, msAfter }));
-  record(ev, "feature", rows, picked(), 4);
+  let best = picked();
+  if (!best) { const mids = rows.map((r) => (r.after[0] + r.after[1]) / 2); best = rows[mids.indexOf(Math.max(...mids))].room; }
+  record(ev, "feature", rows, best, 4);
 }
 
-async function tasks() {
-  const intro = newCard("Part 3 of 3");
-  intro.append(el("h2", { text: "The rooms" }),
-    el("p", { text: `You will now go through ${queryOrder.length} short tasks. In each one you read about one or more rooms and answer, then see them and answer again. Sometimes you will then answer for a similar room from its description only.` }));
-  await nextButton(intro);
-  for (const [i, q] of queryOrder.entries()) {
-    const hint = `Task ${i + 1} of ${queryOrder.length}`, step = "Part 3 of 3";
-    setProgress(0.25 + 0.73 * (i / queryOrder.length));
-    if (q.kind === "single") await singleRoom(q, step, hint);
-    else if (q.kind === "pair") await pairRooms(q, step, hint);
-    else await featureRooms(q, step, hint);
+const BLOCK_INTRO = {
+  single: { title: "Rooms one at a time",
+    text: "In each task you read the description of a room and rate it, then see the room and rate it again. Then you rate a few other rooms from their descriptions only." },
+  preference: { title: "Comparing rooms",
+    text: "In each task you see a room and rate it. Then you read about one or two other rooms and rate them. Then you see all of them together, the first room included, and rate them again." },
+  feature: { title: "Changing one thing",
+    text: "In each task you see a room and rate it. Then you read about three versions of it that change one thing, for example the lighting, and rate them. Then you see what those options look like and rate the versions again." },
+};
+async function runBlocks() {
+  const total = blocks.reduce((n, b) => n + b.tasks.length, 0);
+  let done = 0;
+  for (const [bi, b] of blocks.entries()) {
+    const step = `Part ${bi + 2} of ${PARTS}`;
+    const intro = newCard(step);
+    intro.append(el("h2", { text: BLOCK_INTRO[b.kind].title }),
+      el("p", { text: `${BLOCK_INTRO[b.kind].text} There are ${b.tasks.length} tasks in this part.` }));
+    await nextButton(intro);
+    for (const [i, q] of b.tasks.entries()) {
+      const hint = `Task ${i + 1} of ${b.tasks.length}`;
+      setProgress(0.15 + 0.83 * (done / total));
+      if (q.kind === "single") await singleRoom(q, step, hint);
+      else if (q.kind === "preference") await preferenceTask(q, step, hint);
+      else await featureRooms(q, step, hint);
+      done++;
+    }
   }
 }
 
@@ -462,7 +530,7 @@ window.study1 = data;
 if (VIZ) {
   document.body.classList.add("viz");
   const panel = document.querySelector("#vizPanel");
-  const { createViz } = await import("./study1_viz.js?v=8");
+  const { createViz } = await import("./study1_viz.js?v=9");
   viz = createViz(panel, { queries: EVENTS, mapping });
 }
 if (FULL) {
@@ -471,7 +539,7 @@ if (FULL) {
   await check();
   await practice();
   await features();
+  if (CONFIG.optionCheck) await optionCheck();
 }
-await warmup();
-await tasks();
+await runBlocks();
 await finish();
