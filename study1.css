@@ -69,7 +69,6 @@ body.viz main{width:min(1560px,100%)}
 body.viz .layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
 body.viz .card,body.viz .card.wide{width:100%;padding:24px 26px}
 body.viz .row-grid,body.viz .row-grid.three{grid-template-columns:repeat(2,minmax(0,1fr))}
-body.viz .room-view{aspect-ratio:16/8}
 .viz-panel{position:sticky;top:0;max-height:100vh;overflow:auto;display:grid;gap:12px;padding:0 2px 24px;font-size:13px;line-height:1.45;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
 .vz-head{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:8px}
 .vz-slider select{font:inherit;font-size:13px;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 6px;background:#fff}
