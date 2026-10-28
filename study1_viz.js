@@ -1,17 +1,22 @@
 // study1_viz.js: the right half of study1.html?viz=1. The graphs follow your own answers.
 //
-// How the model reads your answers (the Study 1 learning model, as in fit5.py / study1_short.jl):
+// How the model reads your answers (the Study 1 learning model, as in fit6.py):
 //   - Start of a task: for a room you have rated, your latest rating. For a room you have not rated, the
 //     average of your ratings from descriptions so far (Zhi-Xuan's baseline prior, 22 Oct; 0 before any).
+//   - The kernel's size, k(x, x) = c + sum(w) + d, comes from your ranges (22 Oct): the average precision
+//     (1 / variance) of your ranges from descriptions, inverted, corrected for what you had already learnt when
+//     you gave each one. The sliders set how that size is shared between c, the w's and d.
+//   - sigma and gamma come from your ranges too (22 Oct: "we ideally don't want a slider for noise"): the values
+//     that make the model's ranges (± 2 sd) closest to yours, on a log scale, over every range you have given.
 //   - After you see a room, number model: your change for the room seen is spread to every room with the
 //     kernel, move(y) = S_yQ S_QQ^-1 (your change); the noise cancels out of this. The uncertainty S
 //     shrinks as in the model, with noise variance sigma^2 (1 + gamma (rooms on screen - 1)).
 //   - Order model: only which room you rated higher (or picked) is used, with the probit update.
 //   - Your answers after seeing are drawn as black marks, to compare with what the model expected.
 // The panel shows (asked for on 8, 15 and 22 Oct): your ratings and the model's guess for all rooms, grouped by
-// how many options they share with the room on screen; one room
-// and its 12 single-feature neighbours; kernel controls (and noise and number-vs-order); and, for a
-// preference query, how far each room moves under the number model vs the order model.
+// how many options they share with the room on screen; one room and its 12 single-feature neighbours; the
+// kernel controls and number-vs-order; and, for a preference query, how far each room moves under the number
+// model vs the order model.
 import { FEATURES, FEATURE_NAMES } from "./room.js";
 
 const SHORT = {
@@ -45,13 +50,13 @@ function invSmall(A, k) {
   }
   return M.map((r) => r.slice(k));
 }
-// Number model, uncertainty: S <- S - S_.Q (S_QQ + nv I)^-1 S_Q.
-function shrink(S, Q, nv) {
+// Number model, uncertainty: S <- S - S_.Q (S_QQ + nv I)^-1 S_Q. S is n x n (all 256 rooms, or fewer).
+function shrink(S, Q, nv, n = N) {
   const k = Q.length, S2 = Float64Array.from(S); if (!k) return S2;
-  const Ai = invSmall(Q.map((i) => Q.map((j) => S[i * N + j] + (i === j ? nv : 0))), k);
-  const G = new Float64Array(N * k);
-  for (let r = 0; r < N; r++) for (let c = 0; c < k; c++) { let s = 0; for (let t = 0; t < k; t++) s += S[r * N + Q[t]] * Ai[t][c]; G[r * k + c] = s; }
-  for (let r = 0; r < N; r++) for (let j = 0; j < N; j++) { let s = 0; for (let c = 0; c < k; c++) s += G[r * k + c] * S[Q[c] * N + j]; S2[r * N + j] -= s; }
+  const Ai = invSmall(Q.map((i) => Q.map((j) => S[i * n + j] + (i === j ? nv : 0))), k);
+  const G = new Float64Array(n * k);
+  for (let r = 0; r < n; r++) for (let c = 0; c < k; c++) { let s = 0; for (let t = 0; t < k; t++) s += S[r * n + Q[t]] * Ai[t][c]; G[r * k + c] = s; }
+  for (let r = 0; r < n; r++) for (let j = 0; j < n; j++) { let s = 0; for (let c = 0; c < k; c++) s += G[r * k + c] * S[Q[c] * n + j]; S2[r * n + j] -= s; }
   return S2;
 }
 // Order model: "i is liked more than j", the probit update (moment matched). Each room has noise nv.
@@ -67,8 +72,13 @@ function seePair(B, i, j, nv) {
 
 // ---------------------------------------------------------------- the viz
 export function createViz(panel, { queries, mapping }) {
-  // Kernel k(x, y) = c + sum_f w_f [x_f = y_f] + d [x = y]; noise variance sigma^2 (1 + gamma (rooms shown - 1)).
-  const P = { c: 20, w: [12.5, 12.5, 12.5, 12.5], d: 30, sigma: 5.8, gamma: 0.5, obs: "utility" };
+  // Kernel k(x, y) = size * (c + sum_f w_f [x_f = y_f] + d [x = y]) / (c + sum w + d); noise variance
+  // sigma^2 (1 + gamma (rooms shown - 1)). size, sigma and gamma are fitted from your ranges (defaults until then).
+  const Z = 2;                                    // a range is read as the guess ± 2 sd, as in the band drawn
+  const P = { c: 20, w: [12.5, 12.5, 12.5, 12.5], d: 30, size: 100, sigma: 5.8, gamma: 0.5, obs: "utility",
+    fitted: { size: false, sigma: false, gamma: false } };
+  const total = () => P.c + P.w.reduce((a, b) => a + b, 0) + P.d;
+  const kshare = (i, j) => { let v = P.c; for (let f = 0; f < 4; f++) if (ROOMS[i][f] === ROOMS[j][f]) v += P.w[f]; return (v + (i === j ? P.d : 0)) / total(); };
   const optName = (f, v) => SHORT[mapping[FEATURES[f]][v]];
   const describeRoom = (i) => ROOMS[i].map((v, f) => optName(f, v)).join(", ");
   const noiseVar = (k) => P.sigma * P.sigma * (1 + P.gamma * (k - 1));
@@ -79,11 +89,63 @@ export function createViz(panel, { queries, mapping }) {
 
   function build() {
     K = new Float64Array(N * N);
-    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
-      let v = P.c; for (let f = 0; f < 4; f++) if (ROOMS[i][f] === ROOMS[j][f]) v += P.w[f];
-      K[i * N + j] = v + (i === j ? P.d : 0);
-    }
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) K[i * N + j] = P.size * kshare(i, j);
     Sb = [K];                                     // Sb[e]: the uncertainty before event e
+  }
+
+  // ------------------------------------------------------------ size, sigma and gamma from your ranges (22 Oct)
+  // Every range you have given up to event e: from descriptions (before), and after seeing (for event e, only
+  // once you have moved on). The model's range for a room is ± 2 sd of its belief at that moment.
+  function rangeRecords(e) {
+    const recs = [];
+    for (let t = 0; t <= e; t++) {
+      for (const [c, v] of Object.entries(hist[t].before)) if (v) recs.push({ t, i: idxOf(c), after: false, w: v.high - v.low });
+      if (t < e) for (const [c, v] of Object.entries(hist[t].after)) if (v) recs.push({ t, i: idxOf(c), after: true, w: v.high - v.low });
+    }
+    return recs;
+  }
+  // Runs the number model's uncertainty over just the rooms involved. Returns the squared log-distance between
+  // your ranges and the model's, and the mean of size / (variance left) over your ranges from descriptions.
+  function runRanges(recs, e, sigma, gamma, size) {
+    const set = new Set(recs.map((r) => r.i));
+    for (let t = 0; t < e; t++) for (const c of queries[t].shown) set.add(idxOf(c));
+    const R = [...set], pos = new Map(R.map((i, k) => [i, k])), n = R.length;
+    let S = new Float64Array(n * n);
+    for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) S[a * n + b] = size * kshare(R[a], R[b]);
+    let err = 0, iu = 0, nu = 0;
+    const score = (r) => { const p = pos.get(r.i), v = Math.max(S[p * n + p], 1e-9); err += (Math.log(Math.max(r.w, 1)) - Math.log(Math.max(2 * Z * Math.sqrt(v), 1))) ** 2; return v; };
+    for (let t = 0; t <= e; t++) {
+      for (const r of recs) if (r.t === t && !r.after) { const v = score(r); iu += size / v; nu++; }
+      if (t === e) break;
+      const q = queries[t], Q = q.shown.filter((_, k) => q.read[k]).map((c) => pos.get(idxOf(c)));
+      S = shrink(S, Q, q.shown.length > 0 ? sigma * sigma * (1 + gamma * (q.shown.length - 1)) : 1, n);
+      for (const r of recs) if (r.t === t && r.after) score(r);
+    }
+    return { err, iu: nu ? iu / nu : 1 };
+  }
+  function fitRanges(e) {
+    const recs = rangeRecords(e), text = recs.filter((r) => !r.after);
+    if (!text.length) return;
+    // size: average precision of your ranges from descriptions, inverted, then corrected for what you had already learnt
+    const plain = 1 / (text.reduce((a, r) => a + (2 * Z / Math.max(r.w, 2)) ** 2, 0) / text.length);
+    const sizeAt = (sg, gm) => { let sz = plain; for (let k = 0; k < 2; k++) sz = plain * runRanges(recs, e, sg, gm, sz).iu; return sz; };
+    let size = sizeAt(P.sigma, P.gamma), sigma = P.sigma, gamma = P.gamma;
+    const seen = recs.filter((r) => r.after && queries[r.t].read.some((x) => x));
+    const several = seen.some((r) => queries[r.t].shown.length > 1);
+    const best = (vals, f) => vals.reduce((b, v) => { const x = f(v); return x < b[1] ? [v, x] : b; }, [vals[0], Infinity])[0];
+    if (seen.length) {
+      for (let round = 0; round < 2; round++) {
+        const grid = Array.from({ length: 30 }, (_, k) => Math.exp(Math.log(1) + (Math.log(40) - Math.log(1)) * k / 29));
+        sigma = best(grid, (sg) => runRanges(recs, e, sg, gamma, size).err);
+        const fine = Array.from({ length: 11 }, (_, k) => Math.min(40, sigma * Math.exp(0.13 * (k - 5) / 5)));
+        sigma = best(fine, (sg) => runRanges(recs, e, sg, gamma, size).err);
+        if (several) gamma = best(Array.from({ length: 21 }, (_, k) => k * 0.1), (gm) => runRanges(recs, e, sigma, gm, size).err);
+        size = sizeAt(sigma, gamma);
+      }
+    }
+    P.size = size; P.fitted.size = true;
+    if (seen.length) { P.sigma = sigma; P.fitted.sigma = true; }
+    if (several) { P.gamma = gamma; P.fitted.gamma = true; }
   }
 
   // Your latest rating (midpoint) of each room up to event e; with ranges = true, the latest range itself.
@@ -146,10 +208,15 @@ export function createViz(panel, { queries, mapping }) {
   // ------------------------------------------------------------ hooks from the task
   function render() { queued = false; const st = state(); drawAll(st); drawNeighbours(st); drawCompare(st); }
   function later() { if (!queued) { queued = true; requestAnimationFrame(render); } }
-  function goTo(qi, phase, nb = null) { view = { qi, phase, nb }; focusOverride = null; render(); }
+  function goTo(qi, phase, nb = null) {
+    const refit = qi !== view.qi || phase !== view.phase;
+    view = { qi, phase, nb }; focusOverride = null;
+    if (refit) { fitRanges(qi); build(); showFit(); }
+    render();
+  }
   function live(code, v) { hist[view.qi][view.phase === "before" ? "before" : "after"][code] = v; later(); }
   function pick(code) { hist[view.qi].pick = code; later(); }
-  function rebuild() { build(); render(); }
+  function rebuild() { fitRanges(view.qi); build(); showFit(); render(); }
 
   // ------------------------------------------------------------ the panel
   panel.hidden = false;
@@ -172,12 +239,14 @@ export function createViz(panel, { queries, mapping }) {
   function params() {
     const box = $("vzParams"); box.replaceChildren();
     const head = (t) => { const h = document.createElement("div"); h.className = "vz-phead"; h.textContent = t; box.append(h); };
+    const outs = [];
+    const share = (v) => `${Math.round(100 * v / total())}%`;
     const add = (label, get, set, min, max, step) => {
       const row = document.createElement("label"); row.className = "vz-slider";
       const sp = document.createElement("span"); sp.textContent = label;
       const inp = document.createElement("input"); inp.type = "range"; inp.min = min; inp.max = max; inp.step = step; inp.value = get();
-      const out = document.createElement("output"); out.textContent = Number(get()).toFixed(step < 1 ? 2 : 0);
-      inp.addEventListener("input", () => { set(Number(inp.value)); out.textContent = Number(inp.value).toFixed(step < 1 ? 2 : 0); });
+      const out = document.createElement("output"); outs.push([out, get]);
+      inp.addEventListener("input", () => { set(Number(inp.value)); outs.forEach(([o, g]) => (o.textContent = share(g()))); });
       inp.addEventListener("change", rebuild);
       row.append(sp, inp, out); box.append(row);
     };
@@ -185,13 +254,19 @@ export function createViz(panel, { queries, mapping }) {
     add("c, all rooms", () => P.c, (v) => (P.c = v), 0, 100, 1);
     FEATURES.forEach((f, k) => add(`w, ${FEATURE_NAMES[f].toLowerCase()}`, () => P.w[k], (v) => (P.w[k] = v), 0, 40, 0.5));
     add("d, the room alone", () => P.d, (v) => (P.d = v), 0, 100, 1);
-    head("Noise and observation");
-    add("σ, noise", () => P.sigma, (v) => (P.sigma = v), 1, 20, 0.1);
-    add("γ, extra per room", () => P.gamma, (v) => (P.gamma = v), 0, 2, 0.05);
+    outs.forEach(([o, g]) => (o.textContent = share(g())));
+    head("From your ranges");
+    const fit = document.createElement("div"); fit.id = "vzFit"; fit.className = "vz-fit"; box.append(fit);
     const obs = document.createElement("label"); obs.className = "vz-slider";
     obs.innerHTML = `<span>You take in</span><select><option value="utility">a number (utility)</option><option value="ranking">only the order (ranking)</option></select><output></output>`;
     const s = obs.querySelector("select"); s.value = P.obs; s.addEventListener("change", () => { P.obs = s.value; rebuild(); });
     box.append(obs);
+  }
+  function showFit() {
+    const box = $("vzFit"); if (!box) return;
+    const row = (label, v, ok) => `<div class="vz-fitrow"><span>${label}</span><b>${v}</b><i>${ok ? "" : "default"}</i></div>`;
+    box.innerHTML = row("prior sd", Math.sqrt(P.size).toFixed(1), P.fitted.size) + row("σ, noise", P.sigma >= 39.9 ? "40+" : P.sigma.toFixed(1), P.fitted.sigma) +
+      row("γ, extra per room", P.gamma.toFixed(2), P.fitted.gamma);
   }
 
   // ------------------------------------------------------------ drawing
@@ -323,6 +398,7 @@ export function createViz(panel, { queries, mapping }) {
 
   params();
   build();
+  showFit();
   render();
   return { goTo, live, pick };
 }

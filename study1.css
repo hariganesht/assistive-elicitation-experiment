@@ -77,6 +77,10 @@ body.viz .room-view{aspect-ratio:16/8}
 .vz-phead{font-size:14px;font-weight:700;color:var(--ink);margin-top:4px}
 .vz-slider{display:grid;grid-template-columns:130px minmax(0,1fr) 40px;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
 .vz-slider output{font-variant-numeric:tabular-nums;text-align:right;color:var(--ink)}
+.vz-fit{display:grid;gap:4px}
+.vz-fitrow{display:grid;grid-template-columns:130px 48px minmax(0,1fr);gap:8px;align-items:baseline;font-size:12px;color:var(--muted)}
+.vz-fitrow b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;text-align:right}
+.vz-fitrow i{font-style:normal;font-size:11px}
 .vz-chart{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px 10px;min-width:0}
 .vz-chart h3{margin:0;font-size:15px}
 .vz-note{margin:2px 0 8px;color:var(--muted);font-size:12px}
