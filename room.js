@@ -1,6 +1,6 @@
 // The 3D room used in Study 1. The geometry is the same as the Room class in app.js
-// (Study 2), with three additions: a fourth decor option, a "showroom" preview for a
-// single option, and dispose() so that many rooms can be shown one after another.
+// (Study 2), with three additions: a fourth decor option, a view of one option on its own,
+// and dispose() so that many rooms can be shown one after another.
 import * as THREE from "three";
 
 export const FEATURES = ["furniture", "lighting", "wall", "decor"];
@@ -36,17 +36,23 @@ export const FEATURE_NAMES = { furniture: "Furniture", lighting: "Lighting", wal
 
 const SHOWROOM_GREY = 0x8d9296; // a wall colour that is not one of the four options
 
+// Settings shared by every room on the page (set from study1.js).
+//   window:   show the window in complete rooms (29 Oct: it may distract from the options)
+//   exposure: overall brightness (29 Oct: the rooms looked too bright)
+export const ROOM_SETTINGS = { window: true, exposure: 1 };
+
 export class Room {
-  constructor(el, config) {
+  constructor(el, config, { preserve = false } = {}) {
     this.el = el;
     this.s = new THREE.Scene();
     this.s.background = new THREE.Color(0xe7e3dc);
     this.cam = new THREE.PerspectiveCamera(43, 1, 0.1, 100);
     this.cam.position.set(0, 3.8, 12.8);
     this.cam.lookAt(0, 2.15, -0.5);
-    this.r = new THREE.WebGLRenderer({ antialias: true });
+    this.r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: preserve });
     this.r.outputColorSpace = THREE.SRGBColorSpace;
     this.r.toneMapping = THREE.ACESFilmicToneMapping;
+    this.r.toneMappingExposure = ROOM_SETTINGS.exposure;
     el.appendChild(this.r.domElement);
     this.wall = new THREE.MeshStandardMaterial({ color: 0xeee8df, roughness: 0.9 });
     this.wood = new THREE.MeshStandardMaterial({ color: 0x704b32, roughness: 0.8 });
@@ -54,12 +60,14 @@ export class Room {
     this.fabric2 = new THREE.MeshStandardMaterial({ color: 0x88796d, roughness: 1 });
     this.white = new THREE.MeshStandardMaterial({ color: 0xf2efe9 });
     this.dark = new THREE.MeshStandardMaterial({ color: 0x343637 });
-    this.fixed = new THREE.Group();
+    this.fixed = new THREE.Group();       // floor, walls and ceiling
+    this.props = new THREE.Group();       // the rug and the coffee table
+    this.win = new THREE.Group();         // the window
     this.furn = new THREE.Group();
     this.fx = new THREE.Group();
     this.dec = new THREE.Group();
     this.lit = new THREE.Group();
-    this.s.add(this.fixed, this.furn, this.fx, this.dec, this.lit);
+    this.s.add(this.fixed, this.props, this.win, this.furn, this.fx, this.dec, this.lit);
     this.build();
     this.s.add(new THREE.HemisphereLight(0xfff4dc, 0x66717a, 0.52));
     this.observer = new ResizeObserver(() => this.resize());
@@ -73,10 +81,25 @@ export class Room {
   clear(g) { while (g.children.length) g.remove(g.children[0]); }
 
   build() {
-    this.fixed.add(this.box(13, 0.14, 9, new THREE.MeshStandardMaterial({ color: 0x815d43 }), 0, 0, -0.4), this.box(13, 5.8, 0.14, this.wall, 0, 2.9, -4.9), this.box(0.14, 5.8, 9, this.wall, -6.5, 2.9, -0.4), this.box(0.14, 5.8, 9, this.wall, 6.5, 2.9, -0.4), this.box(13, 0.14, 9, this.white, 0, 5.8, -0.4));
-    this.fixed.add(this.box(6.8, 0.03, 4.4, new THREE.MeshStandardMaterial({ color: 0xc6b79f }), 0, 0.09, -0.1), this.box(2.3, 0.18, 1.15, this.wood, 0, 0.62, 0.45));
-    for (const x of [-0.92, 0.92]) for (const z of [0.05, 0.85]) this.fixed.add(this.box(0.12, 0.55, 0.12, this.wood, x, 0.32, z));
-    this.fixed.add(this.box(3.35, 2.85, 0.1, this.wood, -3.85, 3.05, -4.77), this.box(2.98, 1.62, 0.025, new THREE.MeshStandardMaterial({ color: 0x8fc4dc }), -3.85, 3.48, -4.73), this.box(2.98, 0.82, 0.025, new THREE.MeshStandardMaterial({ color: 0x718d5d }), -3.85, 2.26, -4.72), this.box(0.07, 2.48, 0.05, this.white, -3.85, 3.05, -4.56), this.box(2.98, 0.07, 0.05, this.white, -3.85, 3.05, -4.56));
+    this.floorMat = new THREE.MeshStandardMaterial({ color: 0x815d43 });
+    this.ceilMat = this.white.clone();
+    this.floor = this.box(13, 0.14, 9, this.floorMat, 0, 0, -0.4);
+    this.back = this.box(13, 5.8, 0.14, this.wall, 0, 2.9, -4.9);
+    this.sides = [this.box(0.14, 5.8, 9, this.wall, -6.5, 2.9, -0.4), this.box(0.14, 5.8, 9, this.wall, 6.5, 2.9, -0.4)];
+    this.ceiling = this.box(13, 0.14, 9, this.ceilMat, 0, 5.8, -0.4);
+    this.fixed.add(this.floor, this.back, ...this.sides, this.ceiling);
+    this.props.add(this.box(6.8, 0.03, 4.4, new THREE.MeshStandardMaterial({ color: 0xc6b79f }), 0, 0.09, -0.1), this.box(2.3, 0.18, 1.15, this.wood, 0, 0.62, 0.45));
+    for (const x of [-0.92, 0.92]) for (const z of [0.05, 0.85]) this.props.add(this.box(0.12, 0.55, 0.12, this.wood, x, 0.32, z));
+    this.win.add(this.box(3.35, 2.85, 0.1, this.wood, -3.85, 3.05, -4.77), this.box(2.98, 1.62, 0.025, new THREE.MeshStandardMaterial({ color: 0x8fc4dc }), -3.85, 3.48, -4.73), this.box(2.98, 0.82, 0.025, new THREE.MeshStandardMaterial({ color: 0x718d5d }), -3.85, 2.26, -4.72), this.box(0.07, 2.48, 0.05, this.white, -3.85, 3.05, -4.56), this.box(2.98, 0.07, 0.05, this.white, -3.85, 3.05, -4.56));
+  }
+
+  // Back to a complete room: every surface and prop in its usual colour.
+  whole() {
+    for (const m of [this.floor, this.back, ...this.sides, this.ceiling]) m.visible = true;
+    this.floorMat.color.setHex(0x815d43); this.ceilMat.color.setHex(0xf2efe9);
+    this.props.visible = true; this.win.visible = ROOM_SETTINGS.window;
+    this.s.background.setHex(0xe7e3dc);
+    if (this.fill) this.fill.visible = false;
   }
 
   chair(x, z, rot = 0, m = this.fabric2) { const g = new THREE.Group(); g.add(this.box(1.12, 0.46, 1.12, m, 0, 0.56, 0), this.box(1.12, 0.86, 0.2, m, 0, 1.15, -0.46)); g.position.set(x, 0, z); g.rotation.y = rot; this.furn.add(g); }
@@ -178,22 +201,41 @@ export class Room {
   }
 
   // A complete room: one option for each of the four features.
-  set(c) { this.setF(c.furniture); this.setW(c.wall); this.setD(c.decor); this.setL(c.lighting); this.render(); }
+  set(c) { this.whole(); this.setF(c.furniture); this.setW(c.wall); this.setD(c.decor); this.setL(c.lighting); this.render(); }
 
-  // One option on its own, in a plain grey showroom, so that no other option is on display.
+  // One option on its own (29 Oct): in the same place as in a complete room, with everything else taken
+  // away (no window, rug, table or other options), so it is easy to picture in the room.
+  //   furniture: the pieces on a dark floor, nothing else
+  //   decor:     the pieces on a plain grey back wall, nothing else
+  //   walls:     the empty room with those walls
+  //   lighting:  the empty grey room, lit only by those lights
   showOption(feature, value) {
-    this.clear(this.furn); this.clear(this.dec); this.clear(this.lit);
-    this.setW(feature === "wall" ? value : "showroom");
-    if (feature === "furniture") this.setF(value);
-    if (feature === "decor") this.setD(value);
-    if (feature === "lighting") this.setL(value);
-    if (!this.fill) {                               // even, neutral light for the showroom
+    this.clear(this.furn); this.clear(this.dec); this.clear(this.lit); this.clear(this.fx);
+    if (!this.fill) {                               // even, neutral light when the option is not a light
       this.fill = new THREE.Group();
       const front = new THREE.DirectionalLight(0xffffff, 1.6); front.position.set(2, 6, 12);
       this.fill.add(new THREE.AmbientLight(0xffffff, 1.7), front);
       this.s.add(this.fill);
     }
+    this.props.visible = false; this.win.visible = false;
     this.fill.visible = feature !== "lighting";   // lighting options are shown by their own light
+    const show = (floor, back, sides, ceiling) => {
+      this.floor.visible = floor; this.back.visible = back; this.sides.forEach((m) => { m.visible = sides; }); this.ceiling.visible = ceiling;
+    };
+    this.ceilMat.color.setHex(0xd9dadb);
+    if (feature === "furniture") {
+      show(true, false, false, false); this.floorMat.color.setHex(0x3a3b3d); this.s.background.setHex(0x1c1d1f);
+      this.setF(value);
+    } else if (feature === "decor") {
+      show(false, true, false, false); this.wall.color.setHex(0xc9cbcc); this.s.background.setHex(0x1c1d1f);
+      this.setD(value);
+    } else if (feature === "wall") {
+      show(true, true, true, true); this.floorMat.color.setHex(0x6b6d70); this.s.background.setHex(0xe7e3dc);
+      this.setW(value);
+    } else {
+      show(true, true, true, true); this.floorMat.color.setHex(0x6b6d70); this.s.background.setHex(0xe7e3dc);
+      this.setW("showroom"); this.setL(value);
+    }
     this.render();
   }
 
@@ -201,3 +243,26 @@ export class Room {
   render() { this.r.render(this.s, this.cam); }
   dispose() { this.observer.disconnect(); this.r.dispose(); this.r.forceContextLoss(); this.r.domElement.remove(); }
 }
+
+// A still picture of a room, or of one option on its own, as an image URL (29 Oct). One hidden renderer draws
+// every picture, so a screen can show many rooms without running out of WebGL contexts (browsers allow about 16).
+// what: a complete room ({furniture, lighting, wall, decor}) or one option ({feature, option}).
+let painter = null;
+const pictures = new Map();
+export function roomPicture(what) {
+  const key = JSON.stringify(what);
+  if (pictures.has(key)) return pictures.get(key);
+  if (!painter) {
+    const host = document.createElement("div");
+    host.style.cssText = "position:fixed;left:-20000px;top:0;width:1280px;height:720px;pointer-events:none";
+    host.setAttribute("aria-hidden", "true");
+    document.body.append(host);
+    painter = new Room(host, null, { preserve: true });
+    painter.observer.disconnect();
+  }
+  if (what.feature) painter.showOption(what.feature, what.option); else painter.set(what);
+  const url = painter.r.domElement.toDataURL("image/jpeg", 0.92);
+  pictures.set(key, url);
+  return url;
+}
+
