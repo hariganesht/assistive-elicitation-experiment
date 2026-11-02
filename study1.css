@@ -15,7 +15,7 @@ p{margin-bottom:12px}
 .screen{display:flex;justify-content:center}
 .card{width:min(800px,100%)}
 .card.wide{width:100%}
-.card .where{font-size:14px;color:var(--muted);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.card .where{font-size:17px;color:var(--muted);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
 .card .actions{display:flex;justify-content:flex-end;margin-top:22px}
 .card .error{font-size:14px;color:#b3261e;min-height:1.3em;text-align:right}
 

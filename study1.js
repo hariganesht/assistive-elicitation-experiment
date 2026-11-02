@@ -48,7 +48,9 @@ const CONFIG = {
   prefAlternatives: [1, 1, 2, 2],  // other rooms per comparison task: 1 = two rooms in all, 2 = three rooms
   featureStep3: "options",         // "options": the original room and each of the three options on its own;
                                    // "rooms": the original room and the three changed rooms in full
-  featurePick: true,               // feature tasks end with "which do you like best?" (29 Oct: reason to check)
+  similarRooms: [3, 2, 0],         // after a single room, similar rooms sharing these numbers of options with it
+                                   // (29 Oct: fewer, so as not to tire people; [3, 2, 1, 0] for all four)
+  featurePick: false,              // feature tasks end with "which do you like best?" (dropped 2 Nov)
   featureReminder: true,           // show all the options again before the feature tasks (29 Oct)
   blockOrder: "random",            // "random", or a fixed order such as "preference,feature,single"
   optionCheck: true,               // after the options screens, name one option per feature
@@ -84,9 +86,10 @@ function newId() {
 
 // Rooms are written as option labels 1-4 for (furniture, lighting, wall, decor). Which real option
 // is "1", "2", ... is shuffled for each participant below.
-// Each set of 4 rooms uses every option once; no room is used in two blocks.
-const SINGLE_ROOMS = ["1111", "2343", "3424", "4232"];
-const PREF_ROOMS = ["1334", "2122", "3241", "4413"];
+// Each set of 4 rooms uses every option once. No room (first room, similar room, alternative or version) appears
+// in more than one task, so nothing is rated again in a different task (29 Oct).
+const SINGLE_ROOMS = ["1234", "2311", "4122", "3443"];   // 2 Nov: chosen so that no room appears in two tasks
+const PREF_ROOMS = ["4232", "3313", "1141", "2424"];
 const FEATURE_ROOMS = ["1223", "2431", "3312", "4144", "1442", "2214", "3133", "4321"];   // each option twice
 
 // The room `code` moved on by `step` options in the features `feats` (0-based). Same as shift() in Julia.
@@ -96,8 +99,8 @@ const shared = (a, b) => [...a].filter((d, i) => d === b[i]).length;
 // Tasks in design order. t is 0-based.
 function singleQuery(code, t) {
   const f = t % 4, g = (k) => (f + k) % 4;
-  return { kind: "single", design: t + 1, shown: [code],
-    neighbours: [change(code, [f], 1), change(code, [g(1), g(2)], 2), change(code, [f, g(1), g(2)], 3), change(code, [0, 1, 2, 3], 2)] };
+  const all = [change(code, [f], 1), change(code, [g(1), g(2)], 2), change(code, [f, g(1), g(2)], 3), change(code, [0, 1, 2, 3], 2)];
+  return { kind: "single", design: t + 1, shown: [code], neighbours: all.filter((n) => CONFIG.similarRooms.includes(shared(n, code))) };
 }
 // A comparison: the original room, then 1 or 2 other rooms, each sharing 2 options with it.
 function prefQuery(code, t) {
@@ -332,14 +335,14 @@ async function practice() {
 
 const PARTS = 1 + blocks.length;   // part 1: the options; then one part per block
 async function features() {
-  const intro = newCard(`Part 1 of ${PARTS}: the options`);
+  const intro = newCard(`Part 1 of ${PARTS}: Familiarize yourself with the options available`);
   intro.append(el("h2", { text: "The options" }),
     el("p", { text: "First you will see the four options for each part of the room. Each option is shown on its own, where it would be in the room. Please look at them carefully. There is nothing to answer." }));
   await nextButton(intro);
   for (const [i, f] of shuffle(FEATURES).entries()) {
     setProgress(0.03 + 0.1 * (i / 4));
-    const card = newCard(`Part 1 of ${PARTS}: the options · ${i + 1} of 4`, { wide: true });
-    card.append(el("h2", { text: `The four kinds of ${FEATURE_NAMES[f].toLowerCase()}` }));
+    const card = newCard(`Part 1 of ${PARTS}: Familiarize yourself with the options available`, { wide: true });
+    card.append(el("h2", { text: `Observe the four kinds of ${FEATURE_NAMES[f].toLowerCase()} shown below` }));
     const grid = el("div", { class: "row-grid" }); card.append(grid);
     const order = shuffle(LEVELS[f]);
     for (const option of order) {
@@ -357,7 +360,7 @@ async function features() {
 async function optionCheck() {
   for (const [i, f] of shuffle(FEATURES).entries()) {
     const option = LEVELS[f][Math.floor(random() * 4)];
-    const card = newCard(`Part 1 of ${PARTS}: the options · check ${i + 1} of 4`);
+    const card = newCard(`Part 1 of ${PARTS}: Familiarize yourself with the options available`);
     card.append(el("h2", { text: `Which kind of ${FEATURE_NAMES[f].toLowerCase()} is this?` }));
     picture(card, { feature: f, option });
     const box = el("div", { class: "choices" });
@@ -368,7 +371,7 @@ async function optionCheck() {
     const ok = pick() === option;
     data.optionCheck.push({ feature: f, option, answer: pick(), ok, ms }); backup();
     if (!ok) {
-      const again = newCard(`Part 1 of ${PARTS}: the options · check ${i + 1} of 4`);
+      const again = newCard(`Part 1 of ${PARTS}: Familiarize yourself with the options available`);
       again.append(el("p", { text: `Not quite: that was ${DESCRIPTIONS[option]}.` }));
       picture(again, { feature: f, option });
       await nextButton(again);
@@ -410,8 +413,8 @@ async function rateNeighbours(q, where, ev, rows) {
   const order = shuffle(q.neighbours);
   for (const [i, n] of order.entries()) {
     viz?.goTo(ev, "neighbours", n);
-    const card = newCard(`${where} · similar room ${i + 1} of ${order.length}`, { wide: true });
-    card.append(el("h2", { text: "A similar room" }),
+    const card = newCard(where, { wide: true });
+    card.append(el("h2", { text: `Read about similar room ${i + 1} of ${order.length}` }),
       el("p", { text: `Now you will read about ${order.length} rooms that are similar to the one you just saw: each keeps some of its features and changes others. You only read about these rooms; you will not see them.` }));
     const cols = el("div", { class: "two-col" }); card.append(cols);
     keptRoom(cols, q.shown[0], "The room you saw");
@@ -427,7 +430,7 @@ async function rateNeighbours(q, where, ev, rows) {
 async function firstRoom(code, where, heading) {
   const options = roomOptions(code), ev = nextEvent();
   viz?.goTo(ev, "see");
-  const card = newCard(`${where} · step 1 of 3`);
+  const card = newCard(where);
   card.append(el("h2", { text: heading }));
   picture(card, options);
   card.append(describe(options));
@@ -441,15 +444,15 @@ async function firstRoom(code, where, heading) {
 async function singleRoom(q, where) {
   const code = q.shown[0], options = roomOptions(code), ev = nextEvent();
   viz?.goTo(ev, "before");
-  let card = newCard(`${where} · the room`);
-  card.append(el("h2", { text: "A room with:" }), describe(options));
+  let card = newCard(where);
+  card.append(el("h2", { text: "Read about the room described below" }), describe(options));
   let s = slider(card, code);
   const msBefore = await nextButton(card, { ready: answered(s), label: "See the room" });
   const before = remember(code, s.value());
 
   viz?.goTo(ev, "see");
-  card = newCard(`${where} · the room`);
-  card.append(el("h2", { text: "Here is the room" }));
+  card = newCard(where);
+  card.append(el("h2", { text: "Observe the room shown below" }));
   picture(card, options);
   card.append(describe(options));
   s = slider(card, code);
@@ -465,11 +468,11 @@ async function preferenceTask(q, where) {
   const label = (i) => (k === 1 ? "The other room" : `Room ${LETTERS[i]}`);
 
   // 1. One room, as a picture.
-  const first = await firstRoom(orig, where, "A room");
+  const first = await firstRoom(orig, where, "Observe the room shown below");
 
   // 2. The other room(s), as text only, all at once, with the first room kept on screen.
   const ev = nextEvent(); viz?.goTo(ev, "before");
-  let card = newCard(`${where} · step 2 of 3`, { wide: true });
+  let card = newCard(where, { wide: true });
   card.append(el("h2", { text: k === 1 ? "Another room" : "Two other rooms" }),
     el("p", { text: `You will read about ${k === 1 ? "another room" : "two other rooms"} and rate ${k === 1 ? "it" : "them"}. Then you will see all the rooms together.` }));
   const cols = el("div", { class: "two-col" }); card.append(cols);
@@ -485,8 +488,8 @@ async function preferenceTask(q, where) {
 
   // 3. All of them as pictures, the first room included; every room rated again.
   viz?.goTo(ev, "see");
-  card = newCard(`${where} · step 3 of 3`, { wide: true });
-  card.append(el("h2", { text: k === 1 ? "The two rooms" : `The ${k + 1} rooms` }));
+  card = newCard(where, { wide: true });
+  card.append(el("h2", { text: "Observe the rooms shown below" }));
   questionOnce(card);
   const grid = el("div", { class: `row-grid ${k === 1 ? "two" : "three"}` }); card.append(grid);
   const cellFor = (code, opts, name) => {
@@ -508,12 +511,12 @@ async function featureRooms(q, where) {
   const versions = shuffle(q.variants), vOpts = versions.map(roomOptions);
 
   // 1. One room, as a picture.
-  await firstRoom(base, where, "A room");
+  await firstRoom(base, where, "Observe the room shown below");
   const baseRating = lastAnswer[base];
 
   // 2. Three versions with a different option for one feature, as text, with the room kept on screen.
   const ev = nextEvent(); viz?.goTo(ev, "before");
-  let card = newCard(`${where} · step 2 of 3`, { wide: true });
+  let card = newCard(where, { wide: true });
   card.append(el("h2", { text: `Three versions of this room with different ${fname}` }));
   const cols = el("div", { class: "two-col" }); card.append(cols);
   keptRoom(cols, base, "The room you saw");
@@ -532,8 +535,8 @@ async function featureRooms(q, where) {
   //    the original marked on each scale; then, optionally, the best of the four is picked.
   viz?.goTo(ev, "see");
   const asOptions = CONFIG.featureStep3 === "options";
-  card = newCard(`${where} · step 3 of 3`, { wide: true });
-  card.append(el("h2", { text: asOptions ? `The room, and the three other kinds of ${fname}` : `The room and three versions with different ${fname}` }));
+  card = newCard(where, { wide: true });
+  card.append(el("h2", { text: asOptions ? `Observe the room and the three other kinds of ${fname} shown below` : "Observe the rooms shown below" }));
   const top = el("div", { class: "original-top" }, el("div", { class: "room-label", text: "The room" }));
   picture(top, baseOpts);
   top.append(describe(baseOpts), el("p", { class: "small", text: `You rated it ${rangeText(baseRating)}.` }));
@@ -578,14 +581,14 @@ async function runBlocks() {
   const total = blocks.reduce((n, b) => n + b.tasks.length, 0);
   let done = 0;
   for (const [bi, b] of blocks.entries()) {
-    const part = `Part ${bi + 2} of ${PARTS}: ${BLOCK_INTRO[b.kind].title.toLowerCase()}`;
+    const part = `Part ${bi + 2} of ${PARTS}: ${BLOCK_INTRO[b.kind].title}`;
     const intro = newCard(part);
     intro.append(el("h2", { text: BLOCK_INTRO[b.kind].title }),
       el("p", { text: `${BLOCK_INTRO[b.kind].text} There are ${b.tasks.length} tasks in this part.` }));
     await nextButton(intro);
     if (b.kind === "feature" && CONFIG.featureReminder) await reminder(part);
     for (const [i, q] of b.tasks.entries()) {
-      const where = `${part} · task ${i + 1} of ${b.tasks.length}`;
+      const where = `${part} (task ${i + 1} of ${b.tasks.length})`;
       setProgress(0.15 + 0.83 * (done / total));
       if (q.kind === "single") await singleRoom(q, where);
       else if (q.kind === "preference") await preferenceTask(q, where);

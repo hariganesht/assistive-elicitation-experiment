@@ -204,11 +204,8 @@ export class Room {
   set(c) { this.whole(); this.setF(c.furniture); this.setW(c.wall); this.setD(c.decor); this.setL(c.lighting); this.render(); }
 
   // One option on its own (29 Oct): in the same place as in a complete room, with everything else taken
-  // away (no window, rug, table or other options), so it is easy to picture in the room.
-  //   furniture: the pieces on a dark floor, nothing else
-  //   decor:     the pieces on a plain grey back wall, nothing else
-  //   walls:     the empty room with those walls
-  //   lighting:  the empty grey room, lit only by those lights
+  // away (no window, rug, table or other options), in the same empty grey room for every feature. Lighting
+  // options light the room themselves; the others are shown in even light.
   showOption(feature, value) {
     this.clear(this.furn); this.clear(this.dec); this.clear(this.lit); this.clear(this.fx);
     if (!this.fill) {                               // even, neutral light when the option is not a light
@@ -219,23 +216,14 @@ export class Room {
     }
     this.props.visible = false; this.win.visible = false;
     this.fill.visible = feature !== "lighting";   // lighting options are shown by their own light
-    const show = (floor, back, sides, ceiling) => {
-      this.floor.visible = floor; this.back.visible = back; this.sides.forEach((m) => { m.visible = sides; }); this.ceiling.visible = ceiling;
-    };
-    this.ceilMat.color.setHex(0xd9dadb);
-    if (feature === "furniture") {
-      show(true, false, false, false); this.floorMat.color.setHex(0x3a3b3d); this.s.background.setHex(0x1c1d1f);
-      this.setF(value);
-    } else if (feature === "decor") {
-      show(false, true, false, false); this.wall.color.setHex(0xc9cbcc); this.s.background.setHex(0x1c1d1f);
-      this.setD(value);
-    } else if (feature === "wall") {
-      show(true, true, true, true); this.floorMat.color.setHex(0x6b6d70); this.s.background.setHex(0xe7e3dc);
-      this.setW(value);
-    } else {
-      show(true, true, true, true); this.floorMat.color.setHex(0x6b6d70); this.s.background.setHex(0xe7e3dc);
-      this.setW("showroom"); this.setL(value);
-    }
+    // The same empty grey room for every feature (2 Nov): grey floor, ceiling and walls (the walls' own colour
+    // when the option is a kind of wall), so the four features look alike apart from the option itself.
+    for (const m of [this.floor, this.back, ...this.sides, this.ceiling]) m.visible = true;
+    this.floorMat.color.setHex(0x6b6d70); this.ceilMat.color.setHex(0xd9dadb); this.s.background.setHex(0xe7e3dc);
+    this.setW(feature === "wall" ? value : "showroom");
+    if (feature === "furniture") this.setF(value);
+    if (feature === "decor") this.setD(value);
+    if (feature === "lighting") this.setL(value);
     this.render();
   }
 
