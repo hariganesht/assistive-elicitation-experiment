@@ -627,11 +627,13 @@ function popup(title, paragraphs, label = "Start") {
   document.body.append(back); button.focus();
   return new Promise((resolve) => { button.onclick = () => { back.remove(); resolve(); }; });
 }
+const TITLE = "Experiment 1 of Assistive Elicitation";   // browser tab title (17 Nov)
 async function runBlocks() {
   const total = blocks.reduce((n, b) => n + b.tasks.length, 0);
   let done = 0;
   for (const [bi, b] of blocks.entries()) {
     const part = `Task ${bi + 1} of ${blocks.length}: ${BLOCK_INTRO[b.kind].title}`;
+    document.title = `Task ${bi + 1} | ${TITLE}`;
     await popup(`Task ${bi + 1}: ${BLOCK_INTRO[b.kind].title}`, BLOCK_INTRO[b.kind].text(b.tasks.length));
     if (b.kind === "feature" && CONFIG.featureReminder) await reminder(part);
     for (const [i, q] of b.tasks.entries()) {
@@ -647,6 +649,7 @@ async function runBlocks() {
       done++;
     }
   }
+  document.title = TITLE;
 }
 
 // ---------------------------------------------------------------- saving
