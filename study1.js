@@ -296,10 +296,11 @@ const nextEvent = () => ++eventIndex;
 // ---------------------------------------------------------------- screens: introduction
 async function welcome() {
   const card = newCard();
-  card.append(el("h1", { text: "Room Design Study" }),
-    el("p", { text: "In this study you will read about designs for a living room, see some of them, and tell us how much you think you like them. It takes about 20 minutes." }),
-    el("p", { text: "There are no right or wrong answers. We are interested in your own taste." }),
-    el("p", { text: "[Consent information goes here.]" }));   // TODO: approved consent text
+  card.append(el("h1", { text: "Study 1 for Assistive Elicitation" }),
+    el("p", { text: "In this study, you will observe various room configurations either by reading a textual description, or by seeing the room itself. Following this, you will be asked to rate each room." }),
+    el("p", { text: "Please additionally note:" }),
+    el("ol", { class: "steps" }, el("li", { text: "We estimate this task will take about 20 minutes to complete." }), el("li", { text: "There are no right or wrong answers! We would like your opinions." })),
+    el("p", { text: "[Consent information]" }));   // TODO: approved consent text
   await nextButton(card, { label: "Begin" });
 }
 
