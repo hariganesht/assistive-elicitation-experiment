@@ -452,7 +452,7 @@ async function firstRoom(code, where, heading) {
   const options = roomOptions(code), ev = nextEvent();
   viz?.goTo(ev, "see");
   const card = newCard(where);
-  card.append(el("h2", { text: heading }), el("p", { text: "Take a good look at the picture and the description below." }));
+  card.append(el("p", { class: "lead", text: "Please see the room shown below." }));
   picture(card, options);
   card.append(describe(options));
   const s = slider(card, code, { question: Q.seen });
@@ -486,7 +486,7 @@ async function singleRoom(q, where) {
 async function preferenceTask(q, where) {
   const orig = q.original, alts = q.alternatives, k = alts.length;
   const origOpts = roomOptions(orig), altOpts = alts.map(roomOptions);
-  const label = (i) => (k === 1 ? "The other room" : `Room ${LETTERS[i]}`);
+  const label = (i) => (k === 1 ? "New room" : `New room ${LETTERS[i]}`);
 
   // 1. One room, as a picture.
   const first = await firstRoom(orig, where, "Let's start with this room");
@@ -494,10 +494,12 @@ async function preferenceTask(q, where) {
   // 2. The other room(s), as text only, all at once, with the first room kept on screen.
   const ev = nextEvent(); viz?.goTo(ev, "before");
   let card = newCard(where, { wide: true });
-  card.append(el("h2", { text: k === 1 ? "Now read about another room" : "Now read about two more rooms" }),
-    el("p", { text: `You will read about ${k === 1 ? "another room" : "two other rooms"} and rate ${k === 1 ? "it" : "them"}. Then you will see all the rooms together.` }));
+  card.append(el("p", { class: "lead", text: k === 1
+      ? "Please read the description of the room given below on the right. You will be shown this room afterwards."
+      : "Please read the descriptions of the two rooms given below on the right. You will be shown these rooms afterwards." }),
+    el("p", { class: "lead", text: "The initial room is shown on the left." }));
   const cols = el("div", { class: "two-col" }); card.append(cols);
-  keptRoom(cols, orig, "The room you saw");
+  keptRoom(cols, orig, "Initial room");
   const right = el("div", {}); cols.append(right);
   questionOnce(right, k === 1 ? Q.read : Q.readMany);
   let sliders = alts.map((code, i) => {
@@ -510,15 +512,14 @@ async function preferenceTask(q, where) {
   // 3. All of them as pictures, the first room included; every room rated again.
   viz?.goTo(ev, "see");
   card = newCard(where, { wide: true });
-  card.append(el("h2", { text: k === 1 ? "Now compare the original room with the new room" : "Now compare the original room with the new rooms" }),
-    el("p", { text: "Here are all the rooms together, including the one you started with. You may see them differently now that they are side by side." }));
+  card.append(el("p", { class: "lead", text: `Please see all the rooms shown below, including the initial room. You may see them differently now that they are side by side.` }));
   questionOnce(card, Q.seenMany);
   const grid = el("div", { class: `row-grid ${k === 1 ? "two" : "three"}` }); card.append(grid);
   const cellFor = (code, opts, name) => {
     const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: name }));
     picture(cell, opts); cell.append(describe(opts)); grid.append(cell); return slider(cell, code, { question: "", hint: "" });
   };
-  const sOrig = cellFor(orig, origOpts, "The first room");
+  const sOrig = cellFor(orig, origOpts, "Initial room");
   sliders = alts.map((code, i) => cellFor(code, altOpts[i], label(i)));
   const msAfter = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(sOrig, ...sliders) });
   const rows = [{ room: orig, role: "original", shared: 4, read: false, before: first, after: remember(orig, sOrig.value()), msAfter },
@@ -539,11 +540,11 @@ async function featureRooms(q, where) {
   // 2. Three versions with a different option for one feature, as text, with the room kept on screen.
   const ev = nextEvent(); viz?.goTo(ev, "before");
   let card = newCard(where, { wide: true });
-  card.append(el("h2", { text: `Now imagine this room with different ${fname}` }));
+  card.append(el("p", { class: "lead", text: `Please read the descriptions of the versions given below on the right. Each version is the initial room with different ${fname}; everything else stays exactly the same.` }),
+    el("p", { class: "lead", text: "The initial room is shown on the left." }));
   const cols = el("div", { class: "two-col" }); card.append(cols);
-  keptRoom(cols, base, "The room you saw");
+  keptRoom(cols, base, "Initial room");
   const right = el("div", {}); cols.append(right);
-  right.append(el("p", { text: `Each version below is the room you just saw, but with different ${fname}. Everything else in the room stays exactly the same.` }));
   questionOnce(right, Q.readVersions);
   let sliders = versions.map((code, i) => {
     const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: `Version ${LETTERS[i]}` }), describe(vOpts[i], [f]));
@@ -558,8 +559,8 @@ async function featureRooms(q, where) {
   viz?.goTo(ev, "see");
   const asOptions = CONFIG.featureStep3 === "options";
   card = newCard(where, { wide: true });
-  card.append(el("h2", { text: `Now compare the original room with the new ${fname}` }));
-  const top = el("div", { class: "original-top" }, el("div", { class: "room-label", text: "The original room" }));
+  card.append(el("p", { class: "lead", text: `Please see the initial room shown below, and the new ${fname} options below it.` }));
+  const top = el("div", { class: "original-top" }, el("div", { class: "room-label", text: "Initial room" }));
   picture(top, baseOpts);
   top.append(describe(baseOpts), el("p", { class: "small", text: `You rated this room ${rangeText(baseRating)}.` }));
   card.append(top);
@@ -573,7 +574,7 @@ async function featureRooms(q, where) {
     picture(cell, asOptions ? { feature: f, option: vOpts[i][f] } : vOpts[i]);
     cell.append(describe(vOpts[i], [f])); grid.append(cell);
     const s = slider(cell, code, { question: "", hint: "" });
-    s.ref(baseRating, "Your rating of the original room"); return s;
+    s.ref(baseRating, "Your rating of the initial room"); return s;
   });
   let picked = () => null;
   if (CONFIG.featurePick) {

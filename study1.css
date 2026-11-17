@@ -19,7 +19,7 @@ p{margin-bottom:12px}
 .card .actions{display:flex;justify-content:flex-end;margin-top:30px}
 .card .error{font-size:14px;color:#b3261e;min-height:1.3em;text-align:right}
 
-.button{display:inline-block;min-width:140px;padding:10px 22px;border:none;border-radius:4px;background:var(--btn);color:#fff;font:inherit;cursor:pointer;text-align:center;text-decoration:none}
+.button{display:inline-block;min-width:140px;padding:10px 22px;border:none;border-radius:4px;background:var(--btn);color:#fff;font:inherit;font-size:14px;font-weight:bold;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;text-align:center;text-decoration:none}
 .button:hover{background:#333}
 .button:disabled{background:#9a9a9a;cursor:not-allowed}
 
@@ -31,7 +31,7 @@ table.description{border-collapse:collapse;margin:4px 0 14px}
 table.description th{text-align:left;font-weight:bold;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:5px 18px 2px 0;vertical-align:top;white-space:nowrap}
 table.description td{padding:2px 0}
 .option-name{margin-bottom:4px}
-.room-label{font-weight:bold;color:#000;margin:2px 0 6px}
+.room-label{font-size:13px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#000;margin:2px 0 10px}
 
 textarea.comments{width:100%;min-height:110px;border:1px solid #999;padding:8px;font:inherit}
 .choices{margin-bottom:10px}
@@ -41,11 +41,11 @@ textarea.comments{width:100%;min-height:110px;border:1px solid #999;padding:8px;
 
 /* Range slider: lowest and highest on one -50..+50 line. Press and drag sets the range; the handles appear only
    once the participant has pressed, so there is no starting position to anchor on. */
-.range{margin:10px 0 14px}
+.range{margin:28px 0 14px}
 .range .track{margin-top:14px}
 .question,.range .question{font-weight:bold;margin-bottom:2px}
 .subtitle{color:var(--muted);margin-bottom:10px}
-.question-once{margin:6px 0 12px}
+.question-once{margin:28px 0 14px}
 .range .track{position:relative;height:36px;cursor:pointer;touch-action:none}
 .range .track::before{content:"";position:absolute;left:0;right:0;top:15px;height:6px;border-radius:3px;background:#d2d3d6}
 .range .track::after{content:"";position:absolute;left:50%;top:11px;width:2px;height:14px;border-radius:1px;background:#a3a6ab;transform:translateX(-1px)}
@@ -78,7 +78,6 @@ textarea.comments{width:100%;min-height:110px;border:1px solid #999;padding:8px;
 /* The room seen earlier, kept on the left (29 Oct). */
 .two-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:56px;align-items:stretch}
 .two-col > *{display:flex;flex-direction:column}
-.two-col > .kept .small{margin-top:auto;margin-bottom:0}
 .two-col > :not(.kept) > .range:last-child{margin-top:auto;margin-bottom:0}
 .two-col > .kept{padding-right:10px}
 .two-col .cell{padding-top:10px;margin-top:10px;border-top:1px solid var(--line)}
