@@ -591,19 +591,23 @@ async function featureRooms(q, where) {
 
 // Introductions to the three blocks (17 Nov wording). n: number of iterations in the block.
 const NUM = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight"];
+const total = (n) => `In total, there ${n === 1 ? "is one iteration" : `are ${NUM[n] ?? n} iterations`} in this task.`;
 const BLOCK_INTRO = {
   single: { title: "Observing individual rooms",
-    text: (n) => [`In total, there will be ${n === 1 ? "one iteration" : `${NUM[n] ?? n} iterations`} in this task. In each iteration, you will be asked to read a description of a room and rate it.`,
+    text: (n) => ["In each iteration of this task, you will be asked to read a description of a room and rate it.",
       "You will then be shown the actual room, and asked to rate it again.",
-      "Following this, you will be asked to read descriptions of a few other rooms and rate each of them. The room you saw stays on the screen while you do this."] },
+      "Following this, you will be asked to read descriptions of a few other rooms and rate each of them. The room you saw stays on the screen while you do this.",
+      total(n)] },
   preference: { title: "Comparing rooms",
-    text: (n) => [`In total, there will be ${n === 1 ? "one iteration" : `${NUM[n] ?? n} iterations`} in this task. In each iteration, you will first be shown a room and asked to rate it.`,
+    text: (n) => ["In each iteration of this task, you will first be shown a room and asked to rate it.",
       "You will then be asked to read descriptions of one or two other rooms and rate them.",
-      "Following this, you will be shown all of the rooms together, including the first one, and asked to rate each of them again."] },
+      "Following this, you will be shown all of the rooms together, including the first one, and asked to rate each of them again.",
+      total(n)] },
   feature: { title: "Changing one thing about a room",
-    text: (n) => [`In total, there will be ${n === 1 ? "one iteration" : `${NUM[n] ?? n} iterations`} in this task. In each iteration, you will first be shown a room and asked to rate it.`,
+    text: (n) => ["In each iteration of this task, you will first be shown a room and asked to rate it.",
       "You will then be asked to read about three versions of that room, each with one thing changed (for example, the lighting), and rate them.",
-      "Following this, you will be shown each new option on its own, next to the original room, and asked to rate the versions again."] },
+      "Following this, you will be shown each new option on its own, next to the original room, and asked to rate the versions again.",
+      total(n)] },
 };
 // A pop-up over the page (17 Nov): the introduction to each task.
 function popup(title, paragraphs, label = "Start") {
