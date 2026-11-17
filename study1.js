@@ -435,11 +435,11 @@ async function rateNeighbours(q, where, ev, rows) {
   for (const [i, n] of order.entries()) {
     viz?.goTo(ev, "neighbours", n);
     const card = newCard(where, { wide: true });
-    card.append(el("h2", { text: `Now read about another room (${i + 1} of ${order.length})` }),
-      el("p", { text: `Next, you will read about ${NUM[order.length] ?? order.length} other rooms. Each one keeps some of the features of the room you saw and changes others. You will only read about these rooms; you will not see them.` }));
+    card.append(el("p", { class: "lead", text: "Please read the description of the room given below on the right. You will not be seeing these rooms afterwards." }),
+      el("p", { class: "lead", text: "The initial room is shown on the left." }));
     const cols = el("div", { class: "two-col" }); card.append(cols);
-    keptRoom(cols, q.shown[0], "The room you saw");
-    const right = el("div", {}, el("div", { class: "room-label", text: "Another room" }), describe(roomOptions(n)));
+    keptRoom(cols, q.shown[0], "Initial room");
+    const right = el("div", {}, el("div", { class: "room-label", text: `New room (${i + 1} of ${order.length})` }), describe(roomOptions(n)));
     cols.append(right);
     const s = slider(right, n, { question: Q.read });
     const ms = await nextButton(card, { ready: answered(s) });

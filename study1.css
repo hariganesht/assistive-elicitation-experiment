@@ -15,7 +15,7 @@ p{margin-bottom:12px}
 .screen{display:flex;justify-content:center}
 .card{width:min(800px,100%)}
 .card.wide{width:100%}
-.card .where{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
+.card .where{font-size:13px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
 .card .actions{display:flex;justify-content:flex-end;margin-top:22px}
 .card .error{font-size:14px;color:#b3261e;min-height:1.3em;text-align:right}
 
@@ -28,7 +28,7 @@ p{margin-bottom:12px}
 .room-view img,.room-view canvas{width:100%!important;height:100%!important;display:block;object-fit:cover;object-position:50% 27%}
 
 table.description{border-collapse:collapse;margin:4px 0 14px}
-table.description th{text-align:left;font-weight:normal;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:5px 18px 2px 0;vertical-align:top;white-space:nowrap}
+table.description th{text-align:left;font-weight:bold;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:5px 18px 2px 0;vertical-align:top;white-space:nowrap}
 table.description td{padding:2px 0}
 .option-name{margin-bottom:4px}
 .room-label{font-weight:bold;margin:2px 0 6px}
@@ -146,3 +146,6 @@ input,button,select,textarea{font-family:Arial,Helvetica,sans-serif}
 
 .modal ol.steps{margin:0 0 12px;padding-left:22px}
 .modal ol.steps li{margin-bottom:8px}
+/* No lone words on a new line (17 Nov). */
+p,li,.subtitle,.question,.readout,.prev-text,.ref-text,td{text-wrap:pretty}
+h1,h2,.room-label{text-wrap:balance}
