@@ -165,3 +165,7 @@ table.description th{width:122px}
 .row-grid > .cell > .range{margin-top:auto}
 .row-grid > .cell.kept{padding-right:0}
 .row-grid:not(.two):not(.three) table.description th{width:auto}
+ol.steps{margin:0 0 14px;padding-left:22px}
+ol.steps li{margin-bottom:10px}
+.choices{margin-bottom:24px}
+.choices .question{margin-bottom:8px}

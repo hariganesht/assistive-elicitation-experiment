@@ -303,17 +303,36 @@ async function welcome() {
   await nextButton(card, { label: "Begin" });
 }
 
+// Tutorial (17 Nov): numbered instructions, numbered questions, and the same header on every tutorial screen.
+const TUT_SLIDER = "Tutorial for slider", TUT_FEATURES = "Tutorial for features";
+const lead = (text) => el("p", { class: "lead", text });
+const numbered = (items) => el("ol", { class: "steps" }, ...items.map((t) => el("li", { text: t })));
+
 async function instructions() {
-  const card = newCard();
+  const card = newCard(TUT_SLIDER);
   const how = CONFIG.rangeWording === "90"
-    ? "Give a range that you are 90% sure your rating would fall in. If you are unsure, give a wide range, for example −20 to +30. If you are sure, give a narrow one, or put both handles on the same point."
-    : "Give the lowest and highest rating you think you could end up giving the room. If you are unsure, give a wide range, for example −20 to +30. If you are sure, give a narrow one, or put both handles on the same point.";
-  card.append(el("h2", { text: "How you will answer" }),
-    el("p", { text: "Each room has four things that can vary: the furniture, the lighting, the walls and the wall decor." }),
-    el("p", { text: `For every room we ask: "${QUESTION}" You answer on a scale from −50 (strongly dislike) through 0 (neutral) to +50 (strongly like).` }),
-    el("p", { text: how }),
-    el("p", { text: "Sometimes you will only read a description, and sometimes you will also see the room. When you rate a room again, your earlier answer is shown faintly. Keep it or change it: answer with what you think now." }));
+    ? "You will be asked to give a range that you are 90% sure your rating would fall in. If you are unsure, give a wide range, for example −20 to +30. If you are sure, give a narrow range, or put both ends on the same point."
+    : "You will be asked to give the lowest and highest rating you think you could end up giving the room. If you are unsure, give a wide range, for example −20 to +30. If you are sure, give a narrow range, or put both ends on the same point.";
+  card.append(lead("Please read the following instructions carefully."),
+    numbered([
+      "Each room has four features that can vary: the furniture, the lighting, the walls and the wall decor.",
+      `For every room, you will be asked: "${QUESTION}" You will answer on a scale from −50 (strongly dislike) through 0 (neutral) to +50 (strongly like).`,
+      how,
+      "In some steps you will only read a description of a room, and in others you will also be shown the room. When you rate a room again, your earlier answer will be shown on the scale. You may keep it or change it, depending on what you think now.",
+    ]));
   await nextButton(card);
+}
+
+// Numbered multiple-choice questions on one screen. items: [{ q, a: [answers], right, picture? }].
+function questionsCard(card, items) {
+  const groups = items.map((item, i) => {
+    const box = el("div", { class: "choices" }, el("p", { class: "question", text: `${i + 1}. ${item.q}` }));
+    if (item.picture) picture(box, item.picture);
+    item.a.forEach((txt, j) => box.append(el("label", {}, el("input", { type: "radio", name: `q${i}`, value: String(j) }), ` ${txt}`)));
+    return box;
+  });
+  const pick = (i) => { const c = groups[i].querySelector("input:checked"); return c ? Number(c.value) : null; };
+  return { groups, pick, ready: () => (items.every((_, i) => pick(i) !== null) ? true : `Please answer ${items.length === 2 ? "both" : "all"} questions.`) };
 }
 
 async function check() {
@@ -322,26 +341,23 @@ async function check() {
     { q: "You have no idea whether you would like a room. What do you do?", a: ["Put both handles on 0", "Give a wide range, for example −40 to +40", "Give a narrow range around 0"], right: 1 },
   ];
   for (let attempt = 1; ; attempt++) {
-    const card = newCard("Before you start: a quick check");
-    const groups = qs.map((item, i) => {
-      const box = el("div", { class: "choices" }, el("p", { text: item.q }));
-      item.a.forEach((txt, j) => box.append(el("label", {}, el("input", { type: "radio", name: `q${i}`, value: String(j) }), ` ${txt}`)));
-      card.append(box); return box;
-    });
-    const pick = (i) => { const c = groups[i].querySelector("input:checked"); return c ? Number(c.value) : null; };
-    await nextButton(card, { ready: () => (qs.every((_, i) => pick(i) !== null) ? true : "Please answer both questions.") });
+    const card = newCard(TUT_SLIDER);
+    card.append(lead("Please answer the following questions about the slider."));
+    const { groups, pick, ready } = questionsCard(card, qs);
+    card.append(...groups);
+    await nextButton(card, { ready });
     const ok = qs.every((item, i) => pick(i) === item.right);
     data.check.push({ attempt, answers: qs.map((_, i) => pick(i)), ok });
     if (ok) return;
-    const again = newCard("Before you start: a quick check");
-    again.append(el("p", { text: "Not quite. The lowest and highest show how sure you are: the same point if you are certain, a wide range if you are unsure. Please try again." }));
+    const again = newCard(TUT_SLIDER);
+    again.append(lead("Not quite. The lowest and highest ratings show how sure you are: the same point if you are certain, a wide range if you are unsure. Please try again."));
     await nextButton(again);
   }
 }
 
 async function practice() {
-  const card = newCard("Before you start: practice");
-  card.append(el("h2", { text: "Try the scale" }), el("p", { text: "Press on the line and drag to set your range. You can then drag either end." }));
+  const card = newCard(TUT_SLIDER);
+  card.append(lead("To try the scale, press on the line and drag to set your range. You can then drag either end."));
   const s = rangeSlider({ question: "How much do you like rainy days?", hint: HINT });
   card.append(s.node);
   const ms = await nextButton(card, { ready: answered(s) });
@@ -349,58 +365,62 @@ async function practice() {
 }
 
 const PARTS = 1 + blocks.length;   // part 1: the options; then one part per block
+function optionGrid(parent, f, order) {
+  const grid = el("div", { class: "row-grid" }); parent.append(grid);
+  for (const option of order) {
+    const cell = el("div", {}); grid.append(cell);
+    picture(cell, { feature: f, option });
+    cell.append(el("div", { class: "option-name", text: DESCRIPTIONS[option] }));
+  }
+}
 async function features() {
-  const intro = newCard("Before the tasks: familiarize yourself with the options available");
-  intro.append(el("h2", { text: "The options" }),
-    el("p", { text: "First you will see the four options for each part of the room. Each option is shown on its own, where it would be in the room. Please look at them carefully. There is nothing to answer." }));
+  const intro = newCard(TUT_FEATURES);
+  intro.append(lead("You will now see the four options for each feature of the room. Each feature is shown separately, corresponding to where it would be placed in the room."),
+    lead("Please look at them carefully. You will not be required to answer any questions for this section of the tutorial."));
   await nextButton(intro);
   for (const [i, f] of shuffle(FEATURES).entries()) {
     setProgress(0.03 + 0.1 * (i / 4));
-    const card = newCard("Before the tasks: familiarize yourself with the options available", { wide: true });
-    card.append(el("h2", { text: `Here are the four kinds of ${FEATURE_NAMES[f].toLowerCase()} you will see in this study` }), el("p", { text: "Take a moment to look at each one. You will be asked about them shortly." }));
-    const grid = el("div", { class: "row-grid" }); card.append(grid);
+    const card = newCard(TUT_FEATURES, { wide: true });
+    card.append(lead(`The four options for the ${FEATURE_NAMES[f].toLowerCase()} feature are shown below, along with a brief description of what the room entails.`));
     const order = shuffle(LEVELS[f]);
-    for (const option of order) {
-      const cell = el("div", {}); grid.append(cell);
-      picture(cell, { feature: f, option });
-      cell.append(el("div", { class: "option-name", text: DESCRIPTIONS[option] }));
-    }
+    optionGrid(card, f, order);
     const ms = await nextButton(card, { minMs: CONFIG.minFeatureViewMs });
     data.features.push({ feature: f, order, ms }); backup();
   }
 }
 
-// A short check that the options were looked at (people skimmed these screens on 15 Oct): one option per feature,
-// shown on its own; which one is it? After a wrong answer (17 Nov) people see that feature's four options again and
-// get another question on it, until they answer one right.
+// A short check that the options were looked at (17 Nov): two numbered questions on one screen, each on a randomly
+// chosen feature (two different features) and option. After a wrong answer people see the four options of the
+// feature(s) they got wrong, then answer two new questions on the same features, until both are right.
 async function optionCheck() {
-  const where = "Before the tasks: familiarize yourself with the options available";
-  for (const f of shuffle(FEATURES)) {
-    const fname = FEATURE_NAMES[f].toLowerCase();
-    let asked = [];
-    for (let attempt = 1; ; attempt++) {
-      const left = LEVELS[f].filter((o) => !asked.includes(o));
-      const option = (left.length ? left : LEVELS[f])[Math.floor(random() * (left.length || 4))];
-      asked.push(option);
-      const card = newCard(where);
-      card.append(el("h2", { text: `Which kind of ${fname} is shown in this picture?` }),
-        el("p", { text: "Choose the description that matches the picture." }));
-      picture(card, { feature: f, option });
-      const box = el("div", { class: "choices" });
-      for (const o of shuffle(LEVELS[f])) box.append(el("label", {}, el("input", { type: "radio", name: "opt", value: o }), ` ${DESCRIPTIONS[o]}`));
-      card.append(box);
-      const pick = () => box.querySelector("input:checked")?.value ?? null;
-      const ms = await nextButton(card, { ready: () => (pick() ? true : "Please choose one of the descriptions.") });
-      const ok = pick() === option;
-      data.optionCheck.push({ feature: f, option, answer: pick(), ok, attempt, ms }); backup();
-      if (ok) break;
-      const again = newCard(where, { wide: true });
-      again.append(el("h2", { text: "Not quite, let's look again" }),
-        el("p", { text: `That picture showed ${DESCRIPTIONS[option]}. Here are the four kinds of ${fname} once more. Take another look, and then we will ask you about one of them again.` }));
-      const grid = el("div", { class: "row-grid" }); again.append(grid);
-      for (const o of LEVELS[f]) { const cell = el("div", {}); grid.append(cell); picture(cell, { feature: f, option: o }); cell.append(el("div", { class: "option-name", text: DESCRIPTIONS[o] })); }
-      await nextButton(again, { label: "Try again", minMs: CONFIG.minRoomViewMs });
-    }
+  const feats = shuffle(FEATURES).slice(0, 2);
+  const asked = Object.fromEntries(feats.map((f) => [f, []]));
+  for (let attempt = 1; ; attempt++) {
+    const items = feats.map((f) => {
+      const left = LEVELS[f].filter((o) => !asked[f].includes(o));
+      const pool = left.length ? left : LEVELS[f];
+      const option = pool[Math.floor(random() * pool.length)];
+      asked[f].push(option);
+      const a = shuffle(LEVELS[f]);
+      return { f, option, choices: a, q: `Which option for the ${FEATURE_NAMES[f].toLowerCase()} is shown in this picture?`, a: a.map((o) => DESCRIPTIONS[o]), right: a.indexOf(option), picture: { feature: f, option } };
+    });
+    const card = newCard(TUT_FEATURES, { wide: true });
+    card.append(lead("Please answer the following questions about the features."));
+    const { groups, pick, ready } = questionsCard(card, items);
+    const row = el("div", { class: "row-grid two" }, ...groups); card.append(row);
+    const ms = await nextButton(card, { ready });
+    const wrong = [];
+    items.forEach((it, i) => {
+      const ok = pick(i) === it.right;
+      data.optionCheck.push({ feature: it.f, option: it.option, answer: it.choices[pick(i)], ok, attempt, ms });
+      if (!ok) wrong.push(it);
+    });
+    backup();
+    if (!wrong.length) return;
+    const again = newCard(TUT_FEATURES, { wide: true });
+    again.append(lead(`Not quite. ${wrong.map((it) => `The ${FEATURE_NAMES[it.f].toLowerCase()} picture showed ${DESCRIPTIONS[it.option]}.`).join(" ")} Please look at the options again below; you will then be asked two new questions.`));
+    for (const it of wrong) { again.append(el("div", { class: "room-label", text: FEATURE_NAMES[it.f] })); optionGrid(again, it.f, LEVELS[it.f]); }
+    await nextButton(again, { label: "Try again", minMs: CONFIG.minRoomViewMs });
   }
 }
 
