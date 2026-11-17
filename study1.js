@@ -300,9 +300,9 @@ async function welcome() {
   card.append(el("div", { class: "page-title", text: "Study 1 for Assistive Elicitation" }),
     el("p", { class: "lead", text: "In this study, you will observe various room configurations either by reading a textual description, or by seeing the room itself. Following this, you will be asked to rate each room." }),
     el("p", { class: "lead", text: "Please additionally note:" }),
-    points([["We estimate this task will take about 20 minutes to complete."],
-      ["There are no right or wrong answers!", "We would like your opinions."],
-      ["You will first be taken through a tutorial before proceeding to the actual tasks."]]),
+    numbered(["We estimate this task will take about 20 minutes to complete.",
+      "There are no right or wrong answers! We would like your opinions.",
+      "You will first be taken through a tutorial before proceeding to the actual tasks."]),
     el("p", { text: "[Consent information]" }));   // TODO: approved consent text
   await nextButton(card, { label: "Begin" });
 }
@@ -319,19 +319,17 @@ function points(items) {
 }
 
 async function instructions() {
-  const example = rangeSlider({}); example.example(-20, 30);
-  const exampleBox = el("div", { class: "point-example" }, example.node, el("div", { class: "point-detail", text: "For example: a range from −20 to +30 means you are fairly unsure, but lean towards liking the room." }));
   const how = CONFIG.rangeWording === "90"
-    ? "Give a range that you are 90% sure your rating would fall in. If you are unsure, give a wide range; if you are sure, give a narrow one, or put both ends on the same point."
-    : "Give the lowest and highest rating you think you could end up giving the room. If you are unsure, give a wide range; if you are sure, give a narrow one, or put both ends on the same point.";
+    ? "You will be asked to give a range that you are 90% sure your rating would fall in. If you are unsure, give a wide range, for example −20 to +30. If you are sure, give a narrow range, or put both ends on the same point."
+    : "You will be asked to give the lowest and highest rating you think you could end up giving the room. If you are unsure, give a wide range, for example −20 to +30. If you are sure, give a narrow range, or put both ends on the same point.";
   await popup(TUT_SLIDER, [
     "Please read the following instructions carefully.",
-    points([
-      ["Each room has four features that can vary.", "The furniture, the lighting, the walls and the wall decor. Each feature has four options, which you will see later in this tutorial."],
-      ["You will rate how much you think you would like each room.", `For every room, you will be asked: "${QUESTION}" The scale runs from −50 (strongly dislike) through 0 (neutral) to +50 (strongly like).`],
-      ["You will give a range, not a single number.", how, exampleBox],
-      ["Some rooms you will only read about; others you will also see.", "When you rate a room again, your earlier answer will be shown on the scale. You may keep it or change it, depending on what you think now."],
-    ]),
+    [
+      "Each room has four features that can vary: the furniture, the lighting, the walls and the wall decor.",
+      `For every room, you will be asked: "${QUESTION}" You will answer on a scale from −50 (strongly dislike) through 0 (neutral) to +50 (strongly like).`,
+      how,
+      "In some steps you will only read a description of a room, and in others you will also be shown the room. When you rate a room again, your earlier answer will be shown on the scale. You may keep it or change it, depending on what you think now.",
+    ],
   ], "Continue");
 }
 
