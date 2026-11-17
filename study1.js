@@ -280,7 +280,7 @@ function keptRoom(parent, code, label, note = "") {
   const box = el("div", { class: "kept" }, el("div", { class: "room-label", text: label }));
   picture(box, roomOptions(code)); box.append(describe(roomOptions(code)));
   const r = lastAnswer[code];
-  if (r) box.append(el("p", { class: "small", text: `${note || "You rated it"} ${rangeText(r)}.` }));
+  if (r) box.append(el("p", { class: "small", text: `${note || "You rated this room"} ${rangeText(r)}.` }));
   parent.append(box); return box;
 }
 
@@ -561,7 +561,7 @@ async function featureRooms(q, where) {
   card.append(el("h2", { text: `Now compare the original room with the new ${fname}` }));
   const top = el("div", { class: "original-top" }, el("div", { class: "room-label", text: "The original room" }));
   picture(top, baseOpts);
-  top.append(describe(baseOpts), el("p", { class: "small", text: `You rated it ${rangeText(baseRating)}.` }));
+  top.append(describe(baseOpts), el("p", { class: "small", text: `You rated this room ${rangeText(baseRating)}.` }));
   card.append(top);
   card.append(el("p", { text: asOptions
     ? `Below, each picture shows only the new ${fname}, in the place it would be in the room. Imagine the room above with that ${fname} instead; everything else stays the same.`

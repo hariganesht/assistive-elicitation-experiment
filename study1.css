@@ -1,7 +1,7 @@
 /* Study 1 page. Plain experiment-page look (2 Nov): white page, system font, standard buttons. */
-:root{--ink:#222;--btn:#111;--muted:#5f6368;--line:#d0d3d6;--paper:#fff;--accent:#2f6db5;--accent-dark:#245a96;--ref:#d38a1e}
+:root{--ink:#222;--btn:#111;--caps:13px;--muted:#5f6368;--line:#d0d3d6;--paper:#fff;--accent:#2f6db5;--accent-dark:#245a96;--ref:#d38a1e}
 *{box-sizing:border-box}
-html,body{margin:0;background:#fff;color:var(--ink)}
+html,body{margin:0;background:#f3f3f1;color:var(--ink)}
 body{font-family:Arial,Helvetica,sans-serif;font-size:17px;line-height:1.5}
 main{width:min(1180px,100%);min-height:100vh;margin:0 auto;padding:44px 20px 40px}
 h1,h2,p{margin-top:0}
@@ -15,8 +15,8 @@ p{margin-bottom:12px}
 .screen{display:flex;justify-content:center}
 .card{width:min(800px,100%)}
 .card.wide{width:100%}
-.card .where{font-size:13px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
-.card .actions{display:flex;justify-content:flex-end;margin-top:22px}
+.card .where{font-size:13px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:26px}
+.card .actions{display:flex;justify-content:flex-end;margin-top:30px}
 .card .error{font-size:14px;color:#b3261e;min-height:1.3em;text-align:right}
 
 .button{display:inline-block;min-width:140px;padding:10px 22px;border:none;border-radius:4px;background:var(--btn);color:#fff;font:inherit;cursor:pointer;text-align:center;text-decoration:none}
@@ -42,26 +42,27 @@ textarea.comments{width:100%;min-height:110px;border:1px solid #999;padding:8px;
 /* Range slider: lowest and highest on one -50..+50 line. Press and drag sets the range; the handles appear only
    once the participant has pressed, so there is no starting position to anchor on. */
 .range{margin:10px 0 14px}
+.range .track{margin-top:14px}
 .question,.range .question{font-weight:bold;margin-bottom:2px}
 .subtitle{color:var(--muted);margin-bottom:10px}
 .question-once{margin:6px 0 12px}
 .range .track{position:relative;height:36px;cursor:pointer;touch-action:none}
-.range .track::before{content:"";position:absolute;left:0;right:0;top:15px;height:6px;border-radius:3px;background:#dcdde0}
+.range .track::before{content:"";position:absolute;left:0;right:0;top:15px;height:6px;border-radius:3px;background:#d2d3d6}
 .range .track::after{content:"";position:absolute;left:50%;top:11px;width:2px;height:14px;border-radius:1px;background:#a3a6ab;transform:translateX(-1px)}
-.range .fill{position:absolute;top:15px;height:6px;border-radius:3px;background:var(--accent);z-index:1}
+.range .fill{position:absolute;top:15px;height:6px;border-radius:3px;background:#111;z-index:1}
 .range .prev{position:absolute;top:5px;height:4px;border-radius:2px;background:#2a9d8f;opacity:.75;pointer-events:none}
 .range .ref{position:absolute;top:27px;height:4px;border-radius:2px;background:var(--ref);opacity:.85;pointer-events:none}
 .range input[type=range]{position:absolute;inset:0;width:100%;height:36px;margin:0;-webkit-appearance:none;appearance:none;background:transparent;pointer-events:none;z-index:2}
-.range input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;pointer-events:auto;width:22px;height:22px;border-radius:50%;background:#fff;border:2px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:grab}
-.range input[type=range]::-moz-range-thumb{pointer-events:auto;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:grab}
+.range input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;pointer-events:auto;width:22px;height:22px;border-radius:50%;background:#fff;border:2px solid #111;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:grab}
+.range input[type=range]::-moz-range-thumb{pointer-events:auto;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid #111;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:grab}
 .range input[type=range]:active::-webkit-slider-thumb{cursor:grabbing;transform:scale(1.08)}
 .range.untouched input[type=range],.range.untouched .fill{visibility:hidden}
-.range .scale{position:relative;height:34px;font-size:12px;line-height:1.25;color:var(--muted);margin-top:2px}
+.range .scale{position:relative;height:38px;font-size:12.5px;font-weight:bold;letter-spacing:.05em;text-transform:uppercase;line-height:1.35;color:var(--ink);margin-top:4px}
 .range .scale span{position:absolute;top:0;transform:translateX(-50%);text-align:center;white-space:nowrap}
 .range .scale span.first{transform:none;text-align:left}
 .range .scale span.last{transform:translateX(-100%);text-align:right}
 .range .scale b{color:var(--ink);font-weight:normal}
-.range .readout{margin-top:6px;min-height:1.4em;text-align:center}
+.range .readout{margin-top:18px;min-height:1.4em;text-align:center}
 .range.untouched .readout{color:var(--muted)}
 .range .prev-text{color:#21796e;text-align:center}
 .range .ref-text{color:#9a6312;text-align:center}
@@ -75,7 +76,10 @@ textarea.comments{width:100%;min-height:110px;border:1px solid #999;padding:8px;
 .row-grid .option-name{}
 .cell + .cell{margin-top:0}
 /* The room seen earlier, kept on the left (29 Oct). */
-.two-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:28px;align-items:start}
+.two-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:56px;align-items:stretch}
+.two-col > *{display:flex;flex-direction:column}
+.two-col > .kept .small{margin-top:auto;margin-bottom:0}
+.two-col > :not(.kept) > .range:last-child{margin-top:auto;margin-bottom:0}
 .two-col > .kept{padding-right:10px}
 .two-col .cell{padding-top:10px;margin-top:10px;border-top:1px solid var(--line)}
 .two-col .question-once + .cell{border-top:none;margin-top:0;padding-top:0}
@@ -97,7 +101,6 @@ textarea.comments{width:100%;min-height:110px;border:1px solid #999;padding:8px;
 }
 /* Narrow sliders (several rooms side by side): ends and neutral only, so labels don't collide. */
 .row-grid .range .scale span:nth-child(2),.row-grid .range .scale span:nth-child(4){display:none}
-.row-grid .range .scale span:nth-child(3) b,.row-grid .range .scale span:nth-child(3) br{display:none}
 
 /* ?viz=1: the task on the left, the graphs of your answers on the right. */
 :root{--vz-belief:#2a78d6;--vz-belief-soft:#2a78d626;--vz-truth:#eb6834;--vz-rank:#d9822b;--vz-cell:#ecebe6}
@@ -140,8 +143,10 @@ body.viz .range .scale span:nth-child(2),body.viz .range .scale span:nth-child(4
 /* Pop-up introduction to each task (17 Nov). */
 .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
 .modal{background:#fff;width:min(640px,100%);padding:28px 30px 22px;border-radius:6px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.modal h2{font-size:15px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
 .modal .actions{display:flex;justify-content:flex-end;margin-top:18px}
 .lead{margin-bottom:14px}
+.lead:last-of-type{margin-bottom:24px}
 input,button,select,textarea{font-family:Arial,Helvetica,sans-serif}
 
 .modal ol.steps{margin:0 0 12px;padding-left:22px}
@@ -149,3 +154,7 @@ input,button,select,textarea{font-family:Arial,Helvetica,sans-serif}
 /* No lone words on a new line (17 Nov). */
 p,li,.subtitle,.question,.readout,.prev-text,.ref-text,td{text-wrap:pretty}
 h1,h2,.room-label{text-wrap:balance}
+.two-col > * > table.description{align-self:flex-start}
+/* Narrower sliders in the two columns: the end labels go on two lines so they don't run into the next one. */
+.two-col .range .scale,.row-grid .range .scale{height:56px}
+.two-col .range .scale span.first,.two-col .range .scale span.last,.row-grid .range .scale span.first,.row-grid .range .scale span.last{white-space:normal;width:90px}
