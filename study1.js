@@ -75,13 +75,15 @@ const Q = {
   read: QUESTION,
   readMany: "How much do you think you would like each of these rooms?",
   readVersions: "How much do you think you would like each version of the room?",
-  seen: "How much do you like the room shown below?",
-  seenMany: "How much do you like each of the rooms shown below?",
+  seen: "How much do you actually like this room?",
+  seenMany: "How much do you actually like each of these rooms?",
   options: "Now that you can see the new options, how much do you think you would like each version of the room?",
 };
 const HINT = CONFIG.rangeWording === "90"
-  ? "Give a range you are 90% sure your rating would fall in. To set your range, press on the line and drag the slider."
-  : "Give the lowest and highest rating you think you could end up giving it. To set your range, press on the line and drag the slider.";
+  ? "Give a range you are 90% sure your rating would fall in."
+  : "Give the lowest and highest rating you think you could end up giving it.";
+// Shown under the slider until it is used (17 Nov: moved below the slider).
+const HOW_TO = "To set your range, press on the line and drag the slider.";
 const SCALE = [[-50, "Strongly dislike"], [-25, "Dislike"], [0, "Neutral"], [25, "Like"], [50, "Strongly like"]];
 
 const seed = Number(params.get("seed")) || Math.floor(Math.random() * 2 ** 31);
@@ -223,7 +225,7 @@ function rangeSlider({ question = "", hint = "" } = {}, onChange) {
     let a = Number(lo.value), b = Number(hi.value);
     if (a > b) { [a, b] = [b, a]; lo.value = a; hi.value = b; }
     fill.style.left = pos(a); fill.style.width = `${b - a}%`;
-    readout.textContent = touched ? (a === b ? `Exactly ${fmt(a)}` : `From ${fmt(a)} to ${fmt(b)}`) : "";
+    readout.textContent = touched ? (a === b ? `Exactly ${fmt(a)}` : `From ${fmt(a)} to ${fmt(b)}`) : HOW_TO;
   };
   const changed = () => { draw(); if (touched) onChange?.({ low: Number(lo.value), high: Number(hi.value) }); };
   const setRange = (p, q) => { lo.value = Math.min(p, q); hi.value = Math.max(p, q); touched = true; node.classList.remove("untouched"); changed(); };
@@ -433,11 +435,11 @@ async function rateNeighbours(q, where, ev, rows) {
   for (const [i, n] of order.entries()) {
     viz?.goTo(ev, "neighbours", n);
     const card = newCard(where, { wide: true });
-    card.append(el("h2", { text: `Now imagine a similar room (${i + 1} of ${order.length})` }),
-      el("p", { text: `Now you will read about ${order.length} rooms that are similar to the one you just saw: each keeps some of its features and changes others. You only read about these rooms; you will not see them.` }));
+    card.append(el("h2", { text: `Now read about another room (${i + 1} of ${order.length})` }),
+      el("p", { text: `Next, you will read about ${NUM[order.length] ?? order.length} other rooms. Each one keeps some of the features of the room you saw and changes others. You will only read about these rooms; you will not see them.` }));
     const cols = el("div", { class: "two-col" }); card.append(cols);
     keptRoom(cols, q.shown[0], "The room you saw");
-    const right = el("div", {}, el("div", { class: "room-label", text: "A similar room" }), describe(roomOptions(n)));
+    const right = el("div", {}, el("div", { class: "room-label", text: "Another room" }), describe(roomOptions(n)));
     cols.append(right);
     const s = slider(right, n, { question: Q.read });
     const ms = await nextButton(card, { ready: answered(s) });
@@ -471,7 +473,7 @@ async function singleRoom(q, where) {
 
   viz?.goTo(ev, "see");
   card = newCard(where);
-  card.append(el("h2", { text: "Here is what that room looks like" }), el("p", { text: "Now that you can see the room, how do you feel about it?" }));
+  card.append(el("p", { class: "lead", text: "Please see the room shown below." }));
   picture(card, options);
   card.append(describe(options));
   s = slider(card, code, { question: Q.seen });
@@ -592,21 +594,22 @@ async function featureRooms(q, where) {
 // Introductions to the three blocks (17 Nov wording). n: number of iterations in the block.
 const NUM = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight"];
 const total = (n) => `In total, there ${n === 1 ? "is one iteration" : `are ${NUM[n] ?? n} iterations`} in this task.`;
+const STEPS_N = ["", "one step", "two steps", "three steps"];
+const STEPS = "In each iteration of this task, there are STEPS to follow:";
 const BLOCK_INTRO = {
   single: { title: "Observing individual rooms",
-    text: (n) => ["In each iteration of this task, you will be asked to read a description of a room and rate it.",
-      "You will then be shown the actual room, and asked to rate it again.",
-      "Following this, you will be asked to read descriptions of a few other rooms and rate each of them. The room you saw stays on the screen while you do this.",
+    text: (n) => [STEPS, ["You will be asked to read a description of a room and rate it. Following this, you will be shown the actual room, and asked to rate it again.",
+      "You will be asked to read descriptions of a few other rooms and rate each of them. The original room will remain on the screen as you complete this step."],
       total(n)] },
   preference: { title: "Comparing rooms",
-    text: (n) => ["In each iteration of this task, you will first be shown a room and asked to rate it.",
-      "You will then be asked to read descriptions of one or two other rooms and rate them.",
-      "Following this, you will be shown all of the rooms together, including the first one, and asked to rate each of them again.",
+    text: (n) => [STEPS, ["You will be shown a room and asked to rate it.",
+      "You will be asked to read descriptions of one or two other rooms and rate them. The original room will remain on the screen as you complete this step.",
+      "You will be shown all of the rooms together, including the original one, and asked to rate each of them again."],
       total(n)] },
   feature: { title: "Changing one thing about a room",
-    text: (n) => ["In each iteration of this task, you will first be shown a room and asked to rate it.",
-      "You will then be asked to read about three versions of that room, each with one thing changed (for example, the lighting), and rate them.",
-      "Following this, you will be shown each new option on its own, next to the original room, and asked to rate the versions again.",
+    text: (n) => [STEPS, ["You will be shown a room and asked to rate it.",
+      "You will be asked to read about three versions of that room, each with one thing changed (for example, the lighting), and rate them.",
+      "You will be shown each new option on its own, together with the original room, and asked to rate the versions again."],
       total(n)] },
 };
 // A pop-up over the page (17 Nov): the introduction to each task.
@@ -614,7 +617,11 @@ function popup(title, paragraphs, label = "Start") {
   screenEl.replaceChildren(); if (!VIZ) window.scrollTo(0, 0);
   const button = el("button", { class: "button", text: label });
   const box = el("div", { class: "modal", role: "dialog", "aria-modal": "true" },
-    el("h2", { text: title }), ...paragraphs.map((t) => el("p", { text: t })), el("div", { class: "actions" }, button));
+    el("h2", { text: title }),
+    ...paragraphs.map((t, k) => Array.isArray(t)
+      ? el("ol", { class: "steps" }, ...t.map((x) => el("li", { text: x })))
+      : el("p", { text: t === STEPS ? STEPS.replace("STEPS", STEPS_N[paragraphs[k + 1].length]) : t })),
+    el("div", { class: "actions" }, button));
   const back = el("div", { class: "modal-back" }, box);
   document.body.append(back); button.focus();
   return new Promise((resolve) => { button.onclick = () => { back.remove(); resolve(); }; });
@@ -628,6 +635,10 @@ async function runBlocks() {
     if (b.kind === "feature" && CONFIG.featureReminder) await reminder(part);
     for (const [i, q] of b.tasks.entries()) {
       const where = `${part} (iteration ${i + 1} of ${b.tasks.length})`;
+      // Between iterations (17 Nov): say plainly that one iteration is over and a new room is coming.
+      if (i > 0) await popup(`Iteration ${i} of ${b.tasks.length} complete`,
+        [`Next is iteration ${i + 1} of ${b.tasks.length}. It starts with a new room, and the steps are the same as before.`],
+        `Start iteration ${i + 1}`);
       setProgress(0.15 + 0.83 * (done / total));
       if (q.kind === "single") await singleRoom(q, where);
       else if (q.kind === "preference") await preferenceTask(q, where);
