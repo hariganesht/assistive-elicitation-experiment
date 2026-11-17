@@ -141,7 +141,7 @@ body.viz .range .scale span:nth-child(2),body.viz .range .scale span:nth-child(4
 
 /* Pop-up introduction to each task (17 Nov). */
 .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
-.modal{background:#fff;width:min(640px,100%);padding:28px 30px 22px;border-radius:6px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.modal{background:#fff;width:min(700px,100%);padding:28px 30px 22px;border-radius:6px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
 .modal h2{font-size:15px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#000;margin-bottom:16px}
 .modal .actions{display:flex;justify-content:flex-end;margin-top:18px}
 .lead{margin-bottom:14px}
@@ -169,3 +169,17 @@ ol.steps{margin:0 0 14px;padding-left:22px}
 ol.steps li{margin-bottom:10px}
 .choices{margin-bottom:24px}
 .choices .question{margin-bottom:8px}
+/* Welcome title and numbered points (17 Nov). */
+.page-title{font-size:15px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#000;margin-bottom:22px}
+ol.points{list-style:none;counter-reset:pt;margin:6px 0 16px;padding:0}
+ol.points > li{counter-increment:pt;position:relative;padding:0 0 0 40px;margin-bottom:16px}
+ol.points > li::before{content:counter(pt);position:absolute;left:0;top:-1px;width:26px;height:26px;border-radius:50%;background:#111;color:#fff;font-size:14px;font-weight:bold;display:flex;align-items:center;justify-content:center}
+.point-main{font-weight:bold}
+.point-detail{color:var(--muted);margin-top:3px}
+.point-example{margin-top:6px;padding:4px 0 0}
+.point-example .range{margin:10px 0 4px}
+.range.example{pointer-events:none}
+.modal{max-height:92vh;overflow:auto}
+.modal .modal-wide{width:min(720px,100%)}
+.point-example .range .scale span:nth-child(2),.point-example .range .scale span:nth-child(4),.point-example .readout{display:none}
+.point-example .range .scale{height:38px}

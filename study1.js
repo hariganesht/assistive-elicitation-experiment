@@ -253,6 +253,7 @@ function rangeSlider({ question = "", hint = "" } = {}, onChange) {
     value: () => (touched ? { low: Number(lo.value), high: Number(hi.value) } : null),
     prev(r) { if (r) band(prevBand, prevText, [r.low, r.high], "Your earlier answer"); },
     ref(r, label) { if (r) band(refBand, refText, [r.low, r.high], label); },
+    example(a, b) { setRange(a, b); node.classList.add("example"); readout.textContent = ""; },   // a fixed picture of a range
   };
 }
 const answered = (...s) => () => (s.every((x) => x.value() !== null) ? true : "Please answer every question by pressing on its line.");
@@ -296,10 +297,12 @@ const nextEvent = () => ++eventIndex;
 // ---------------------------------------------------------------- screens: introduction
 async function welcome() {
   const card = newCard();
-  card.append(el("h1", { text: "Study 1 for Assistive Elicitation" }),
-    el("p", { text: "In this study, you will observe various room configurations either by reading a textual description, or by seeing the room itself. Following this, you will be asked to rate each room." }),
-    el("p", { text: "Please additionally note:" }),
-    el("ol", { class: "steps" }, el("li", { text: "We estimate this task will take about 20 minutes to complete." }), el("li", { text: "There are no right or wrong answers! We would like your opinions." })),
+  card.append(el("div", { class: "page-title", text: "Study 1 for Assistive Elicitation" }),
+    el("p", { class: "lead", text: "In this study, you will observe various room configurations either by reading a textual description, or by seeing the room itself. Following this, you will be asked to rate each room." }),
+    el("p", { class: "lead", text: "Please additionally note:" }),
+    points([["We estimate this task will take about 20 minutes to complete."],
+      ["There are no right or wrong answers!", "We would like your opinions."],
+      ["You will first be taken through a tutorial before proceeding to the actual tasks."]]),
     el("p", { text: "[Consent information]" }));   // TODO: approved consent text
   await nextButton(card, { label: "Begin" });
 }
@@ -309,19 +312,27 @@ const TUT_SLIDER = "Tutorial for slider", TUT_FEATURES = "Tutorial for features"
 const lead = (text) => el("p", { class: "lead", text });
 const numbered = (items) => el("ol", { class: "steps" }, ...items.map((t) => el("li", { text: t })));
 
+// Numbered points (17 Nov): the first sentence in bold, the details below it in grey, and an optional picture.
+function points(items) {
+  return el("ol", { class: "points" }, ...items.map(([main, detail, extra]) =>
+    el("li", {}, el("div", { class: "point-main", text: main }), detail ? el("div", { class: "point-detail", text: detail }) : "", extra ?? "")));
+}
+
 async function instructions() {
-  const card = newCard(TUT_SLIDER);
+  const example = rangeSlider({}); example.example(-20, 30);
+  const exampleBox = el("div", { class: "point-example" }, example.node, el("div", { class: "point-detail", text: "For example: a range from −20 to +30 means you are fairly unsure, but lean towards liking the room." }));
   const how = CONFIG.rangeWording === "90"
-    ? "You will be asked to give a range that you are 90% sure your rating would fall in. If you are unsure, give a wide range, for example −20 to +30. If you are sure, give a narrow range, or put both ends on the same point."
-    : "You will be asked to give the lowest and highest rating you think you could end up giving the room. If you are unsure, give a wide range, for example −20 to +30. If you are sure, give a narrow range, or put both ends on the same point.";
-  card.append(lead("Please read the following instructions carefully."),
-    numbered([
-      "Each room has four features that can vary: the furniture, the lighting, the walls and the wall decor.",
-      `For every room, you will be asked: "${QUESTION}" You will answer on a scale from −50 (strongly dislike) through 0 (neutral) to +50 (strongly like).`,
-      how,
-      "In some steps you will only read a description of a room, and in others you will also be shown the room. When you rate a room again, your earlier answer will be shown on the scale. You may keep it or change it, depending on what you think now.",
-    ]));
-  await nextButton(card);
+    ? "Give a range that you are 90% sure your rating would fall in. If you are unsure, give a wide range; if you are sure, give a narrow one, or put both ends on the same point."
+    : "Give the lowest and highest rating you think you could end up giving the room. If you are unsure, give a wide range; if you are sure, give a narrow one, or put both ends on the same point.";
+  await popup(TUT_SLIDER, [
+    "Please read the following instructions carefully.",
+    points([
+      ["Each room has four features that can vary.", "The furniture, the lighting, the walls and the wall decor. Each feature has four options, which you will see later in this tutorial."],
+      ["You will rate how much you think you would like each room.", `For every room, you will be asked: "${QUESTION}" The scale runs from −50 (strongly dislike) through 0 (neutral) to +50 (strongly like).`],
+      ["You will give a range, not a single number.", how, exampleBox],
+      ["Some rooms you will only read about; others you will also see.", "When you rate a room again, your earlier answer will be shown on the scale. You may keep it or change it, depending on what you think now."],
+    ]),
+  ], "Continue");
 }
 
 // Numbered multiple-choice questions on one screen. items: [{ q, a: [answers], right, picture? }].
@@ -375,10 +386,9 @@ function optionGrid(parent, f, order) {
   }
 }
 async function features() {
-  const intro = newCard(TUT_FEATURES);
-  intro.append(lead("You will now see the four options for each feature of the room. Each feature is shown separately, corresponding to where it would be placed in the room."),
-    lead("Please look at them carefully. You will not be required to answer any questions for this section of the tutorial."));
-  await nextButton(intro);
+  await popup(TUT_FEATURES, [
+    "You will now see the four options for each feature of the room. Each feature is shown separately, corresponding to where it would be placed in the room.",
+    "Please look at them carefully. You will not be required to answer any questions for this section of the tutorial."], "Continue");
   for (const [i, f] of shuffle(FEATURES).entries()) {
     setProgress(0.03 + 0.1 * (i / 4));
     const card = newCard(TUT_FEATURES, { wide: true });
@@ -639,7 +649,7 @@ function popup(title, paragraphs, label = "Start") {
   const button = el("button", { class: "button", text: label });
   const box = el("div", { class: "modal", role: "dialog", "aria-modal": "true" },
     el("h2", { text: title }),
-    ...paragraphs.map((t, k) => Array.isArray(t)
+    ...paragraphs.map((t, k) => t instanceof Node ? t : Array.isArray(t)
       ? el("ol", { class: "steps" }, ...t.map((x) => el("li", { text: x })))
       : el("p", { text: t === STEPS ? STEPS.replace("STEPS", STEPS_N[paragraphs[k + 1].length]) : t })),
     el("div", { class: "actions" }, button));
