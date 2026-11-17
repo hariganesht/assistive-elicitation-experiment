@@ -55,7 +55,7 @@ const CONFIG = {
   blockOrder: "random",            // "random", or a fixed order such as "preference,feature,single"
   optionCheck: true,               // after the options screens, name one option per feature
   rangeWording: "range",           // "range": lowest and highest you could end up giving; "90": 90% sure
-  roomWindow: false,               // a window in the complete rooms (29 Oct: it may distract)
+  roomWindow: true,                // a window in the complete rooms (off 2-17 Nov; back on 17 Nov)
   roomExposure: 0.9,               // brightness of the rooms (29 Oct: too bright at 1)
 };
 
@@ -69,7 +69,16 @@ if (params.get("wording")) CONFIG.rangeWording = params.get("wording");
 ROOM_SETTINGS.window = CONFIG.roomWindow;
 ROOM_SETTINGS.exposure = CONFIG.roomExposure;
 
+// Questions (17 Nov): "think you would like" only for rooms people read about; "like" for rooms they see.
 const QUESTION = "How much do you think you would like this room?";
+const Q = {
+  read: QUESTION,
+  readMany: "How much do you think you would like each of these rooms?",
+  readVersions: "How much do you think you would like each version of the room?",
+  seen: "How much do you like the room shown below?",
+  seenMany: "How much do you like each of the rooms shown below?",
+  options: "Now that you can see the new options, how much do you think you would like each version of the room?",
+};
 const HINT = CONFIG.rangeWording === "90"
   ? "Give a range you are 90% sure your rating would fall in."
   : "Give the lowest and highest rating you think you could end up giving it.";
@@ -258,7 +267,7 @@ function slider(parent, room, { question = QUESTION, hint = HINT } = {}) {
   const s = rangeSlider({ question, hint }, (v) => viz?.live(room, v)); s.prev(lastAnswer[room]); parent.append(s.node); return s;
 }
 // The question once, above several rooms that each have their own scale.
-function questionOnce(card, question = QUESTION) {
+function questionOnce(card, question) {
   card.append(el("div", { class: "question-once" }, el("div", { class: "question", text: question }), el("div", { class: "subtitle", text: HINT })));
 }
 const asRange = (v) => (v ? [v.low, v.high] : null);
@@ -342,7 +351,7 @@ async function features() {
   for (const [i, f] of shuffle(FEATURES).entries()) {
     setProgress(0.03 + 0.1 * (i / 4));
     const card = newCard(`Part 1 of ${PARTS}: Familiarize yourself with the options available`, { wide: true });
-    card.append(el("h2", { text: `Observe the four kinds of ${FEATURE_NAMES[f].toLowerCase()} shown below` }));
+    card.append(el("h2", { text: `Here are the four kinds of ${FEATURE_NAMES[f].toLowerCase()} you will see in this study` }), el("p", { text: "Take a moment to look at each one. You will be asked about them shortly." }));
     const grid = el("div", { class: "row-grid" }); card.append(grid);
     const order = shuffle(LEVELS[f]);
     for (const option of order) {
@@ -356,25 +365,35 @@ async function features() {
 }
 
 // A short check that the options were looked at (people skimmed these screens on 15 Oct): one option per feature,
-// shown on its own; which one is it? A wrong answer is corrected and the next question follows.
+// shown on its own; which one is it? After a wrong answer (17 Nov) people see that feature's four options again and
+// get another question on it, until they answer one right.
 async function optionCheck() {
-  for (const [i, f] of shuffle(FEATURES).entries()) {
-    const option = LEVELS[f][Math.floor(random() * 4)];
-    const card = newCard(`Part 1 of ${PARTS}: Familiarize yourself with the options available`);
-    card.append(el("h2", { text: `Which kind of ${FEATURE_NAMES[f].toLowerCase()} is this?` }));
-    picture(card, { feature: f, option });
-    const box = el("div", { class: "choices" });
-    for (const o of shuffle(LEVELS[f])) box.append(el("label", {}, el("input", { type: "radio", name: "opt", value: o }), ` ${DESCRIPTIONS[o]}`));
-    card.append(box);
-    const pick = () => box.querySelector("input:checked")?.value ?? null;
-    const ms = await nextButton(card, { ready: () => (pick() ? true : "Please choose one.") });
-    const ok = pick() === option;
-    data.optionCheck.push({ feature: f, option, answer: pick(), ok, ms }); backup();
-    if (!ok) {
-      const again = newCard(`Part 1 of ${PARTS}: Familiarize yourself with the options available`);
-      again.append(el("p", { text: `Not quite: that was ${DESCRIPTIONS[option]}.` }));
-      picture(again, { feature: f, option });
-      await nextButton(again);
+  const where = `Part 1 of ${PARTS}: Familiarize yourself with the options available`;
+  for (const f of shuffle(FEATURES)) {
+    const fname = FEATURE_NAMES[f].toLowerCase();
+    let asked = [];
+    for (let attempt = 1; ; attempt++) {
+      const left = LEVELS[f].filter((o) => !asked.includes(o));
+      const option = (left.length ? left : LEVELS[f])[Math.floor(random() * (left.length || 4))];
+      asked.push(option);
+      const card = newCard(where);
+      card.append(el("h2", { text: `Which kind of ${fname} is shown in this picture?` }),
+        el("p", { text: "Choose the description that matches the picture." }));
+      picture(card, { feature: f, option });
+      const box = el("div", { class: "choices" });
+      for (const o of shuffle(LEVELS[f])) box.append(el("label", {}, el("input", { type: "radio", name: "opt", value: o }), ` ${DESCRIPTIONS[o]}`));
+      card.append(box);
+      const pick = () => box.querySelector("input:checked")?.value ?? null;
+      const ms = await nextButton(card, { ready: () => (pick() ? true : "Please choose one of the descriptions.") });
+      const ok = pick() === option;
+      data.optionCheck.push({ feature: f, option, answer: pick(), ok, attempt, ms }); backup();
+      if (ok) break;
+      const again = newCard(where, { wide: true });
+      again.append(el("h2", { text: "Not quite, let's look again" }),
+        el("p", { text: `That picture showed ${DESCRIPTIONS[option]}. Here are the four kinds of ${fname} once more. Take another look, and then we will ask you about one of them again.` }));
+      const grid = el("div", { class: "row-grid" }); again.append(grid);
+      for (const o of LEVELS[f]) { const cell = el("div", {}); grid.append(cell); picture(cell, { feature: f, option: o }); cell.append(el("div", { class: "option-name", text: DESCRIPTIONS[o] })); }
+      await nextButton(again, { label: "Try again", minMs: CONFIG.minRoomViewMs });
     }
   }
 }
@@ -414,13 +433,13 @@ async function rateNeighbours(q, where, ev, rows) {
   for (const [i, n] of order.entries()) {
     viz?.goTo(ev, "neighbours", n);
     const card = newCard(where, { wide: true });
-    card.append(el("h2", { text: `Read about similar room ${i + 1} of ${order.length}` }),
+    card.append(el("h2", { text: `Now imagine a similar room (${i + 1} of ${order.length})` }),
       el("p", { text: `Now you will read about ${order.length} rooms that are similar to the one you just saw: each keeps some of its features and changes others. You only read about these rooms; you will not see them.` }));
     const cols = el("div", { class: "two-col" }); card.append(cols);
     keptRoom(cols, q.shown[0], "The room you saw");
     const right = el("div", {}, el("div", { class: "room-label", text: "A similar room" }), describe(roomOptions(n)));
     cols.append(right);
-    const s = slider(right, n);
+    const s = slider(right, n, { question: Q.read });
     const ms = await nextButton(card, { ready: answered(s) });
     rows.push({ room: n, role: "neighbour", shared: shared(n, q.shown[0]), read: false, before: null, after: remember(n, s.value()), msAfter: ms });
   }
@@ -431,10 +450,10 @@ async function firstRoom(code, where, heading) {
   const options = roomOptions(code), ev = nextEvent();
   viz?.goTo(ev, "see");
   const card = newCard(where);
-  card.append(el("h2", { text: heading }));
+  card.append(el("h2", { text: heading }), el("p", { text: "Take a good look at the picture and the description below." }));
   picture(card, options);
   card.append(describe(options));
-  const s = slider(card, code);
+  const s = slider(card, code, { question: Q.seen });
   const ms = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(s) });
   const after = remember(code, s.value());
   record(ev, "base", [{ room: code, role: "shown", read: true, before: null, after, msAfter: ms }], code, 1);
@@ -445,17 +464,17 @@ async function singleRoom(q, where) {
   const code = q.shown[0], options = roomOptions(code), ev = nextEvent();
   viz?.goTo(ev, "before");
   let card = newCard(where);
-  card.append(el("h2", { text: "Read about the room described below" }), describe(options));
-  let s = slider(card, code);
+  card.append(el("h2", { text: "Here is a description of a room" }), el("p", { text: "Read it carefully and try to picture what the room might look like." }), describe(options));
+  let s = slider(card, code, { question: Q.read });
   const msBefore = await nextButton(card, { ready: answered(s), label: "See the room" });
   const before = remember(code, s.value());
 
   viz?.goTo(ev, "see");
   card = newCard(where);
-  card.append(el("h2", { text: "Observe the room shown below" }));
+  card.append(el("h2", { text: "Here is what that room looks like" }), el("p", { text: "Now that you can see the room, how do you feel about it?" }));
   picture(card, options);
   card.append(describe(options));
-  s = slider(card, code);
+  s = slider(card, code, { question: Q.seen });
   const msAfter = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(s) });
   const rows = [{ room: code, role: "shown", shared: 4, read: true, before, after: remember(code, s.value()), msBefore, msAfter }];
   await rateNeighbours(q, where, ev, rows);
@@ -468,17 +487,17 @@ async function preferenceTask(q, where) {
   const label = (i) => (k === 1 ? "The other room" : `Room ${LETTERS[i]}`);
 
   // 1. One room, as a picture.
-  const first = await firstRoom(orig, where, "Observe the room shown below");
+  const first = await firstRoom(orig, where, "Let's start with this room");
 
   // 2. The other room(s), as text only, all at once, with the first room kept on screen.
   const ev = nextEvent(); viz?.goTo(ev, "before");
   let card = newCard(where, { wide: true });
-  card.append(el("h2", { text: k === 1 ? "Another room" : "Two other rooms" }),
+  card.append(el("h2", { text: k === 1 ? "Now read about another room" : "Now read about two more rooms" }),
     el("p", { text: `You will read about ${k === 1 ? "another room" : "two other rooms"} and rate ${k === 1 ? "it" : "them"}. Then you will see all the rooms together.` }));
   const cols = el("div", { class: "two-col" }); card.append(cols);
   keptRoom(cols, orig, "The room you saw");
   const right = el("div", {}); cols.append(right);
-  questionOnce(right);
+  questionOnce(right, k === 1 ? Q.read : Q.readMany);
   let sliders = alts.map((code, i) => {
     const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: label(i) }), describe(altOpts[i]));
     right.append(cell); return slider(cell, code, { question: "", hint: "" });
@@ -489,8 +508,9 @@ async function preferenceTask(q, where) {
   // 3. All of them as pictures, the first room included; every room rated again.
   viz?.goTo(ev, "see");
   card = newCard(where, { wide: true });
-  card.append(el("h2", { text: "Observe the rooms shown below" }));
-  questionOnce(card);
+  card.append(el("h2", { text: k === 1 ? "Now compare the original room with the new room" : "Now compare the original room with the new rooms" }),
+    el("p", { text: "Here are all the rooms together, including the one you started with. You may see them differently now that they are side by side." }));
+  questionOnce(card, Q.seenMany);
   const grid = el("div", { class: `row-grid ${k === 1 ? "two" : "three"}` }); card.append(grid);
   const cellFor = (code, opts, name) => {
     const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: name }));
@@ -511,18 +531,18 @@ async function featureRooms(q, where) {
   const versions = shuffle(q.variants), vOpts = versions.map(roomOptions);
 
   // 1. One room, as a picture.
-  await firstRoom(base, where, "Observe the room shown below");
+  await firstRoom(base, where, "Let's start with this room");
   const baseRating = lastAnswer[base];
 
   // 2. Three versions with a different option for one feature, as text, with the room kept on screen.
   const ev = nextEvent(); viz?.goTo(ev, "before");
   let card = newCard(where, { wide: true });
-  card.append(el("h2", { text: `Three versions of this room with different ${fname}` }));
+  card.append(el("h2", { text: `Now imagine this room with different ${fname}` }));
   const cols = el("div", { class: "two-col" }); card.append(cols);
   keptRoom(cols, base, "The room you saw");
   const right = el("div", {}); cols.append(right);
-  right.append(el("p", { text: `Each version is the room you saw with different ${fname}. Everything else stays the same.` }));
-  questionOnce(right);
+  right.append(el("p", { text: `Each version below is the room you just saw, but with different ${fname}. Everything else in the room stays exactly the same.` }));
+  questionOnce(right, Q.readVersions);
   let sliders = versions.map((code, i) => {
     const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: `Version ${LETTERS[i]}` }), describe(vOpts[i], [f]));
     right.append(cell); return slider(cell, code, { question: "", hint: "" });
@@ -536,22 +556,22 @@ async function featureRooms(q, where) {
   viz?.goTo(ev, "see");
   const asOptions = CONFIG.featureStep3 === "options";
   card = newCard(where, { wide: true });
-  card.append(el("h2", { text: asOptions ? `Observe the room and the three other kinds of ${fname} shown below` : "Observe the rooms shown below" }));
-  const top = el("div", { class: "original-top" }, el("div", { class: "room-label", text: "The room" }));
+  card.append(el("h2", { text: `Now compare the original room with the new ${fname}` }));
+  const top = el("div", { class: "original-top" }, el("div", { class: "room-label", text: "The original room" }));
   picture(top, baseOpts);
   top.append(describe(baseOpts), el("p", { class: "small", text: `You rated it ${rangeText(baseRating)}.` }));
   card.append(top);
   card.append(el("p", { text: asOptions
-    ? `Each version below is this room with different ${fname}. The pictures show only the ${fname}, where it would be in the room; everything else stays as above. Rate each version again.`
-    : "Rate each version again." }));
-  questionOnce(card);
+    ? `Below, each picture shows only the new ${fname}, in the place it would be in the room. Imagine the room above with that ${fname} instead; everything else stays the same.`
+    : `Each room below is the room above with different ${fname}.` }));
+  questionOnce(card, asOptions ? Q.options : Q.seenMany);
   const grid = el("div", { class: "row-grid three" }); card.append(grid);
   sliders = versions.map((code, i) => {
     const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: `Version ${LETTERS[i]}` }));
     picture(cell, asOptions ? { feature: f, option: vOpts[i][f] } : vOpts[i]);
     cell.append(describe(vOpts[i], [f])); grid.append(cell);
     const s = slider(cell, code, { question: "", hint: "" });
-    s.ref(baseRating, "Your rating of the room above"); return s;
+    s.ref(baseRating, "Your rating of the original room"); return s;
   });
   let picked = () => null;
   if (CONFIG.featurePick) {

@@ -160,15 +160,33 @@ export class Room {
   setL(t) {
     this.clear(this.lit);
     const add = (x, y, z, p, col = 0xffd39c) => { const l = new THREE.PointLight(col, p, 10, 1.4); l.position.set(x, y, z); this.lit.add(l); };
-    if (t === "bright-overhead") for (const [x, z] of [[-3, -1.7], [0, -1.7], [3, -1.7], [-3, 1.4], [0, 1.4], [3, 1.4]]) { const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.07, 36), this.white); disc.rotation.x = Math.PI / 2; disc.position.set(x, 5.69, z); this.lit.add(disc); add(x, 5.15, z, 18, 0xffe8c9); }
-    if (t === "localized-lamps") for (const [x, z] of [[-4.2, -0.6], [4.2, -0.6]]) { this.lit.add(this.cyl(0.08, 2.1, this.dark, x, 1.1, z), this.cyl(0.55, 0.62, this.white, x, 2.25, z)); add(x, 2.15, z, 38); }
+    // Ceiling lights (17 Nov): flat glowing panels set into the ceiling, so the front and back rows look alike
+    // (the front row used to look black from below).
+    if (t === "bright-overhead") {
+      const panel = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff3dc, emissiveIntensity: 1.2 });
+      for (const [x, z] of [[-3, -1.7], [0, -1.7], [3, -1.7], [-3, 1.4], [0, 1.4], [3, 1.4]]) {
+        const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.04, 36), panel); disc.position.set(x, 5.71, z); this.lit.add(disc);
+        add(x, 5.15, z, 18, 0xffe8c9);
+      }
+    }
+    // Floor lamps (17 Nov): pale fabric shades that glow from inside, light spilling up and down, so the
+    // lamps no longer look dark and shadowy.
+    if (t === "localized-lamps") {
+      const shade = new THREE.MeshStandardMaterial({ color: 0xf4e6cc, emissive: 0xffd9a0, emissiveIntensity: 0.9, side: THREE.DoubleSide });
+      const brass = new THREE.MeshStandardMaterial({ color: 0xb49461, metalness: 0.4, roughness: 0.4 });
+      for (const [x, z] of [[-4.2, -0.6], [4.2, -0.6]]) {
+        this.lit.add(this.cyl(0.32, 0.05, brass, x, 0.1, z), this.cyl(0.045, 2.3, brass, x, 1.2, z));
+        const s = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.58, 0.62, 32, 1, true), shade); s.position.set(x, 2.5, z); this.lit.add(s);
+        add(x, 2.3, z, 30); add(x, 2.9, z, 10, 0xffe2b8);
+      }
+    }
     // Pendants (28 Oct): three large copper domes hanging low over the table on long cords, each with a glowing
     // bulb and a pool of light below. Clearly unlike the chandelier, which is one fitting with many small lights.
     if (t === "pendant-cluster") {
       const copper = new THREE.MeshStandardMaterial({ color: 0xb87344, metalness: 0.35, roughness: 0.45, side: THREE.DoubleSide });
       const glow = new THREE.MeshStandardMaterial({ color: 0xfff1cf, emissive: 0xffd28a, emissiveIntensity: 1.4 });
-      for (const [x, y] of [[-1.25, 3.55], [0, 3.3], [1.25, 3.55]]) {
-        const z = 0.3, cord = 5.8 - y - 0.3;
+      for (const [x, y] of [[-1.25, 4.6], [0, 4.45], [1.25, 4.6]]) {   // high enough not to hide the wall decor (17 Nov)
+        const z = 0.6, cord = 5.8 - y - 0.3;
         this.lit.add(this.cyl(0.02, cord, this.dark, x, y + 0.3 + cord / 2, z));
         const dome = new THREE.Mesh(new THREE.SphereGeometry(0.46, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), copper); dome.position.set(x, y, z); this.lit.add(dome);
         const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), glow); bulb.position.set(x, y - 0.04, z); this.lit.add(bulb);
@@ -182,10 +200,10 @@ export class Room {
       const brass = new THREE.MeshStandardMaterial({ color: 0xc9a25a, metalness: 0.4, roughness: 0.35 });
       const flame = new THREE.MeshStandardMaterial({ color: 0xfff0c8, emissive: 0xffcf7a, emissiveIntensity: 1.8 });
       const crystal = new THREE.MeshStandardMaterial({ color: 0xdff2ff, emissive: 0x9fc9e8, emissiveIntensity: 0.35, roughness: 0.1, transparent: true, opacity: 0.85 });
-      const cx = 0, cz = -0.3;
-      this.lit.add(this.cyl(0.04, 0.95, brass, cx, 5.3, cz), this.cyl(0.16, 0.5, brass, cx, 4.62, cz));
-      const drop = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12), crystal); drop.scale.set(1, 1.6, 1); drop.position.set(cx, 4.2, cz); this.lit.add(drop);
-      for (const [r, y, n, h] of [[1.25, 4.35, 8, 0.32], [0.7, 4.7, 5, 0.26]]) {
+      const cx = 0, cz = 0.6;
+      this.lit.add(this.cyl(0.04, 0.45, brass, cx, 5.55, cz), this.cyl(0.16, 0.4, brass, cx, 5.15, cz));   // raised (17 Nov)
+      const drop = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12), crystal); drop.scale.set(1, 1.6, 1); drop.position.set(cx, 4.8, cz); this.lit.add(drop);
+      for (const [r, y, n, h] of [[1.25, 4.9, 8, 0.28], [0.7, 5.2, 5, 0.22]]) {
         const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.035, 8, 48), brass); ring.rotation.x = Math.PI / 2; ring.position.set(cx, y, cz); this.lit.add(ring);
         for (let i = 0; i < n; i++) {
           const a = (i * 2 * Math.PI) / n, x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
@@ -196,7 +214,7 @@ export class Room {
           add(x, y + h + 0.1, z, r > 1 ? 9 : 7);
         }
       }
-      add(cx, 4.1, cz, 22, 0xffe2b0);
+      add(cx, 4.6, cz, 22, 0xffe2b0);
     }
   }
 
