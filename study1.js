@@ -261,9 +261,8 @@ function describe(options, only = FEATURES) {
     el("tr", {}, el("th", { text: FEATURE_NAMES[f] }), el("td", { text: DESCRIPTIONS[options[f]] }))));
 }
 const LETTERS = ["A", "B", "C"];
-// A room given only in words, drawn as a card the same size as a picture (17 Nov), so it sits beside the rooms
-// that are shown as pictures.
-function textRoom(options, only = FEATURES) { return el("div", { class: "text-room" }, describe(options, only)); }
+// A room given only in words, beside the rooms shown as pictures.
+function textRoom(options, only = FEATURES) { return describe(options, only); }   // plain text, no card (17 Nov)
 // One cell of a side-by-side row: a heading, then a picture or a text card, then (optionally) a slider.
 function roomCell(grid, label, body) { const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: label })); cell.append(body); grid.append(cell); return cell; }
 const rangeText = (v) => (v ? `${fmt(v.low)} to ${fmt(v.high)}` : "");
@@ -671,25 +670,23 @@ async function save() {
   return false;
 }
 
+// 17 Nov: no comments page and no download button for participants. Answers are sent with DataPipe / saveUrl;
+// with ?debug=1 the download button is still shown, for testing.
 async function finish() {
   setProgress(0.98);
-  const card = newCard();
-  const comments = el("textarea", { class: "comments", placeholder: "Optional" });
-  card.append(el("h2", { text: "Almost done" }), el("p", { text: "Is there anything you would like to tell us about the study? For example, was anything unclear?" }), comments);
-  await nextButton(card, { label: "Finish" });
-  data.comments = comments.value.trim(); data.finishedAt = new Date().toISOString();
+  data.finishedAt = new Date().toISOString();
   backup();
-
   const sending = newCard(); sending.append(el("p", { text: "Saving your answers…" }));
   const trying = Boolean(CONFIG.dataPipeId || CONFIG.saveUrl);
   const saved = trying ? await save() : false;
   data.saved = saved; backup();
   setProgress(1);
-  const done = newCard(); done.append(el("h1", { text: "Thank you" }));
-  const file = new Blob([JSON.stringify(data, null, 1)], { type: "application/json" });
-  const download = el("a", { class: "button", href: URL.createObjectURL(file), download: `study1-${data.participant}.json`, text: "Download my answers" });
-  if (saved) done.append(el("p", { text: "Your answers have been saved." }));
-  else done.append(el("p", { text: trying ? "Your answers could not be sent. Please download them and send the file to the researcher." : "Please download your answers and send the file to the researcher." }), download);
+  const done = newCard(); done.append(el("h1", { text: "Thank you" }), el("p", { text: "You have completed the study." }));
+  if (DEBUG) {
+    const file = new Blob([JSON.stringify(data, null, 1)], { type: "application/json" });
+    done.append(el("p", { class: "small", text: saved ? "(debug) Answers saved." : "(debug) Answers were not sent." }),
+      el("a", { class: "button", href: URL.createObjectURL(file), download: `study1-${data.participant}.json`, text: "Download answers" }));
+  }
   if (CONFIG.completionUrl) done.append(el("p", {}, el("a", { href: CONFIG.completionUrl, text: "Click here to complete the study." })));
 }
 

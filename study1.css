@@ -1,7 +1,7 @@
 /* Study 1 page. Plain experiment-page look (2 Nov): white page, system font, standard buttons. */
 :root{--ink:#222;--btn:#111;--caps:13px;--muted:#5f6368;--line:#d0d3d6;--paper:#fff;--accent:#2f6db5;--accent-dark:#245a96;--ref:#d38a1e}
 *{box-sizing:border-box}
-html,body{margin:0;background:#f3f3f1;color:var(--ink)}
+html,body{margin:0;background:#fff;color:var(--ink)}
 body{font-family:Arial,Helvetica,sans-serif;font-size:17px;line-height:1.5}
 main{width:min(1180px,100%);min-height:100vh;margin:0 auto;padding:44px 20px 40px}
 h1,h2,p{margin-top:0}
@@ -164,8 +164,4 @@ table.description th{width:122px}
 .row-grid > .cell{display:flex;flex-direction:column}
 .row-grid > .cell > .range{margin-top:auto}
 .row-grid > .cell.kept{padding-right:0}
-/* A room given in words, the same size as a picture (17 Nov). */
-.text-room{aspect-ratio:2.2/1;margin:12px 0 18px;background:#fff;border:1px solid var(--line);border-radius:4px;display:flex;align-items:center;padding:10px 16px;overflow:hidden}
-.text-room table.description{margin:0}
 .row-grid:not(.two):not(.three) table.description th{width:auto}
-.text-room table.description th{width:auto;padding-right:16px}
