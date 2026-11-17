@@ -15,7 +15,7 @@ p{margin-bottom:12px}
 .screen{display:flex;justify-content:center}
 .card{width:min(800px,100%)}
 .card.wide{width:100%}
-.card .where{font-size:13px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:26px}
+.card .where{font-size:13px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#000;margin-bottom:26px}
 .card .actions{display:flex;justify-content:flex-end;margin-top:30px}
 .card .error{font-size:14px;color:#b3261e;min-height:1.3em;text-align:right}
 
@@ -31,7 +31,7 @@ table.description{border-collapse:collapse;margin:4px 0 14px}
 table.description th{text-align:left;font-weight:bold;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:5px 18px 2px 0;vertical-align:top;white-space:nowrap}
 table.description td{padding:2px 0}
 .option-name{margin-bottom:4px}
-.room-label{font-weight:bold;margin:2px 0 6px}
+.room-label{font-weight:bold;color:#000;margin:2px 0 6px}
 
 textarea.comments{width:100%;min-height:110px;border:1px solid #999;padding:8px;font:inherit}
 .choices{margin-bottom:10px}
@@ -143,7 +143,7 @@ body.viz .range .scale span:nth-child(2),body.viz .range .scale span:nth-child(4
 /* Pop-up introduction to each task (17 Nov). */
 .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
 .modal{background:#fff;width:min(640px,100%);padding:28px 30px 22px;border-radius:6px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
-.modal h2{font-size:15px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
+.modal h2{font-size:15px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#000;margin-bottom:16px}
 .modal .actions{display:flex;justify-content:flex-end;margin-top:18px}
 .lead{margin-bottom:14px}
 .lead:last-of-type{margin-bottom:24px}
