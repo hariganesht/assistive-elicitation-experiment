@@ -276,9 +276,9 @@ const asRange = (v) => (v ? [v.low, v.high] : null);
 const remember = (room, v) => { if (v) lastAnswer[room] = v; return asRange(v); };
 
 // The room seen earlier in a task, kept on screen beside what comes next (29 Oct).
-function keptRoom(parent, code, label, note = "") {
+function keptRoom(parent, code, label, note = "", { text = true } = {}) {
   const box = el("div", { class: "kept" }, el("div", { class: "room-label", text: label }));
-  picture(box, roomOptions(code)); box.append(describe(roomOptions(code)));
+  picture(box, roomOptions(code)); if (text) box.append(describe(roomOptions(code)));
   const r = lastAnswer[code];
   if (r) box.append(el("p", { class: "small", text: `${note || "You rated this room"} ${rangeText(r)}.` }));
   parent.append(box); return box;
@@ -438,7 +438,7 @@ async function rateNeighbours(q, where, ev, rows) {
     card.append(el("p", { class: "lead", text: "Please read the description of the room given below on the right. You will not be seeing these rooms afterwards." }),
       el("p", { class: "lead", text: "The initial room is shown on the left." }));
     const cols = el("div", { class: "two-col" }); card.append(cols);
-    keptRoom(cols, q.shown[0], "Initial room");
+    keptRoom(cols, q.shown[0], "Initial room", "", { text: false });   // task 1: picture only (17 Nov)
     const right = el("div", {}, el("div", { class: "room-label", text: `New room (${i + 1} of ${order.length})` }), describe(roomOptions(n)));
     cols.append(right);
     const s = slider(right, n, { question: Q.read });
@@ -474,8 +474,7 @@ async function singleRoom(q, where) {
   viz?.goTo(ev, "see");
   card = newCard(where);
   card.append(el("p", { class: "lead", text: "Please see the room shown below." }));
-  picture(card, options);
-  card.append(describe(options));
+  picture(card, options);   // picture only, no description (17 Nov)
   s = slider(card, code, { question: Q.seen });
   const msAfter = await nextButton(card, { minMs: CONFIG.minRoomViewMs, ready: answered(s) });
   const rows = [{ room: code, role: "shown", shared: 4, read: true, before, after: remember(code, s.value()), msBefore, msAfter }];
