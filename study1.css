@@ -157,3 +157,15 @@ h1,h2,.room-label{text-wrap:balance}
 /* Narrower sliders in the two columns: the end labels go on two lines so they don't run into the next one. */
 .two-col .range .scale,.row-grid .range .scale{height:56px}
 .two-col .range .scale span.first,.two-col .range .scale span.last,.row-grid .range .scale span.first,.row-grid .range .scale span.last{white-space:normal;width:90px}
+/* Side-by-side rooms (17 Nov): every description uses the same label width, and the sliders line up along the
+   bottom even when one description runs onto two lines. */
+table.description th{width:122px}
+.row-grid{align-items:stretch}
+.row-grid > .cell{display:flex;flex-direction:column}
+.row-grid > .cell > .range{margin-top:auto}
+.row-grid > .cell.kept{padding-right:0}
+/* A room given in words, the same size as a picture (17 Nov). */
+.text-room{aspect-ratio:2.2/1;margin:12px 0 18px;background:#fff;border:1px solid var(--line);border-radius:4px;display:flex;align-items:center;padding:10px 16px;overflow:hidden}
+.text-room table.description{margin:0}
+.row-grid:not(.two):not(.three) table.description th{width:auto}
+.text-room table.description th{width:auto;padding-right:16px}

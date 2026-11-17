@@ -31,7 +31,7 @@
 //                         (starts at the first block; add &full=1 to include the introduction)
 //   ?seed=123             fixes the randomisation
 //   ?PROLIFIC_PID=... or ?pid=...   the participant's ID (otherwise a random one is made)
-import { FEATURES, LEVELS, DESCRIPTIONS, FEATURE_NAMES, ROOM_SETTINGS, roomPicture } from "./room.js";
+import { FEATURES, LEVELS, DESCRIPTIONS, FEATURE_NAMES, ROOM_SETTINGS, roomPicture } from "./room.js?v=2";
 
 // ---------------------------------------------------------------- settings
 const CONFIG = {
@@ -52,7 +52,7 @@ const CONFIG = {
                                    // (29 Oct: fewer, so as not to tire people; [3, 2, 1, 0] for all four)
   featurePick: false,              // feature tasks end with "which do you like best?" (dropped 2 Nov)
   featureReminder: true,           // show all the options again before the feature tasks (29 Oct)
-  blockOrder: "random",            // "random", or a fixed order such as "preference,feature,single"
+  blockOrder: "single,preference,feature",   // fixed order (17 Nov); "random" shuffles the blocks per participant
   optionCheck: true,               // after the options screens, name one option per feature
   rangeWording: "range",           // "range": lowest and highest you could end up giving; "90": 90% sure
   roomWindow: true,                // a window in the complete rooms (off 2-17 Nov; back on 17 Nov)
@@ -261,6 +261,11 @@ function describe(options, only = FEATURES) {
     el("tr", {}, el("th", { text: FEATURE_NAMES[f] }), el("td", { text: DESCRIPTIONS[options[f]] }))));
 }
 const LETTERS = ["A", "B", "C"];
+// A room given only in words, drawn as a card the same size as a picture (17 Nov), so it sits beside the rooms
+// that are shown as pictures.
+function textRoom(options, only = FEATURES) { return el("div", { class: "text-room" }, describe(options, only)); }
+// One cell of a side-by-side row: a heading, then a picture or a text card, then (optionally) a slider.
+function roomCell(grid, label, body) { const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: label })); cell.append(body); grid.append(cell); return cell; }
 const rangeText = (v) => (v ? `${fmt(v.low)} to ${fmt(v.high)}` : "");
 
 // The latest answer for each room, shown faintly when the room is rated again.
@@ -276,7 +281,7 @@ const asRange = (v) => (v ? [v.low, v.high] : null);
 const remember = (room, v) => { if (v) lastAnswer[room] = v; return asRange(v); };
 
 // The room seen earlier in a task, kept on screen beside what comes next (29 Oct).
-function keptRoom(parent, code, label, note = "", { text = true } = {}) {
+function keptRoom(parent, code, label, note = "", { text = false } = {}) {
   const box = el("div", { class: "kept" }, el("div", { class: "room-label", text: label }));
   picture(box, roomOptions(code)); if (text) box.append(describe(roomOptions(code)));
   const r = lastAnswer[code];
@@ -403,8 +408,8 @@ async function optionCheck() {
 // All sixteen options again, one row per feature (before the feature tasks; 29 Oct).
 async function reminder(where) {
   const card = newCard(where, { wide: true });
-  card.append(el("h2", { text: "A reminder of the options" }),
-    el("p", { text: "In this part you will change one thing about a room at a time. Here are all the options again." }));
+  card.append(el("p", { class: "lead", text: "All the options for room configurations are shown below once again as a refresher." }),
+    el("p", { class: "lead", text: "In this part, you will be asked to change one feature of a room at a time." }));
   const table = el("div", { class: "reminder" }); card.append(table);
   for (const f of FEATURES) {
     const row = el("div", { class: "reminder-row" }, el("div", { class: "reminder-name", text: FEATURE_NAMES[f] }));
@@ -437,18 +442,18 @@ async function rateNeighbours(q, where, ev, rows) {
     const card = newCard(where, { wide: true });
     card.append(el("p", { class: "lead", text: "Please read the description of the room given below on the right. You will not be seeing these rooms afterwards." }),
       el("p", { class: "lead", text: "The initial room is shown on the left." }));
-    const cols = el("div", { class: "two-col" }); card.append(cols);
-    keptRoom(cols, q.shown[0], "Initial room", "", { text: false });   // task 1: picture only (17 Nov)
-    const right = el("div", {}, el("div", { class: "room-label", text: `New room (${i + 1} of ${order.length})` }), describe(roomOptions(n)));
-    cols.append(right);
-    const s = slider(right, n, { question: Q.read });
+    questionOnce(card, Q.read);
+    const grid = el("div", { class: "row-grid two" }); card.append(grid);
+    keptRoom(grid, q.shown[0], "Initial room").classList.add("cell");
+    const right = roomCell(grid, `New room (${i + 1} of ${order.length})`, textRoom(roomOptions(n)));
+    const s = slider(right, n, { question: "", hint: "" });
     const ms = await nextButton(card, { ready: answered(s) });
     rows.push({ room: n, role: "neighbour", shared: shared(n, q.shown[0]), read: false, before: null, after: remember(n, s.value()), msAfter: ms });
   }
 }
 
 // The first room of a comparison or feature task: seen as a picture, rated once.
-async function firstRoom(code, where, heading) {
+async function firstRoom(code, where) {
   const options = roomOptions(code), ev = nextEvent();
   viz?.goTo(ev, "see");
   const card = newCard(where);
@@ -488,35 +493,34 @@ async function preferenceTask(q, where) {
   const label = (i) => (k === 1 ? "New room" : `New room ${LETTERS[i]}`);
 
   // 1. One room, as a picture.
-  const first = await firstRoom(orig, where, "Let's start with this room");
+  const first = await firstRoom(orig, where);
 
   // 2. The other room(s), as text only, all at once, with the first room kept on screen.
   const ev = nextEvent(); viz?.goTo(ev, "before");
   let card = newCard(where, { wide: true });
   card.append(el("p", { class: "lead", text: k === 1
-      ? "Please read the description of the room given below on the right. You will be shown this room afterwards."
-      : "Please read the descriptions of the two rooms given below on the right. You will be shown these rooms afterwards." }),
+      ? "Please read the description of the new room given below on the right. You will be shown this room afterwards."
+      : "Please read the descriptions of the two new rooms given below on the right. You will be shown these rooms afterwards." }),
     el("p", { class: "lead", text: "The initial room is shown on the left." }));
-  const cols = el("div", { class: "two-col" }); card.append(cols);
-  keptRoom(cols, orig, "Initial room");
-  const right = el("div", {}); cols.append(right);
-  questionOnce(right, k === 1 ? Q.read : Q.readMany);
-  let sliders = alts.map((code, i) => {
-    const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: label(i) }), describe(altOpts[i]));
-    right.append(cell); return slider(cell, code, { question: "", hint: "" });
-  });
+  // The initial room as a picture and each new room as a text card of the same size, side by side (17 Nov),
+  // so the page fits on one screen without scrolling.
+  questionOnce(card, k === 1 ? Q.read : Q.readMany);
+  const row = el("div", { class: `row-grid ${k === 1 ? "two" : "three"}` }); card.append(row);
+  keptRoom(row, orig, "Initial room").classList.add("cell");
+  let sliders = alts.map((code, i) => slider(roomCell(row, label(i), textRoom(altOpts[i])), code, { question: "", hint: "" }));
   const msBefore = await nextButton(card, { ready: answered(...sliders), label: k === 1 ? "See it" : "See them" });
   const before = sliders.map((s, i) => remember(alts[i], s.value()));
 
   // 3. All of them as pictures, the first room included; every room rated again.
   viz?.goTo(ev, "see");
   card = newCard(where, { wide: true });
-  card.append(el("p", { class: "lead", text: `Please see all the rooms shown below, including the initial room. You may see them differently now that they are side by side.` }));
+  card.append(el("p", { class: "lead", text: `Please see all the rooms shown below, including the initial room.` }));
   questionOnce(card, Q.seenMany);
   const grid = el("div", { class: `row-grid ${k === 1 ? "two" : "three"}` }); card.append(grid);
   const cellFor = (code, opts, name) => {
     const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: name }));
-    picture(cell, opts); cell.append(describe(opts)); grid.append(cell); return slider(cell, code, { question: "", hint: "" });
+    picture(cell, opts); if (code !== orig) cell.append(describe(opts));   // the initial room: picture only (17 Nov)
+    grid.append(cell); return slider(cell, code, { question: "", hint: "" });
   };
   const sOrig = cellFor(orig, origOpts, "Initial room");
   sliders = alts.map((code, i) => cellFor(code, altOpts[i], label(i)));
@@ -533,22 +537,19 @@ async function featureRooms(q, where) {
   const versions = shuffle(q.variants), vOpts = versions.map(roomOptions);
 
   // 1. One room, as a picture.
-  await firstRoom(base, where, "Let's start with this room");
+  await firstRoom(base, where);
   const baseRating = lastAnswer[base];
 
   // 2. Three versions with a different option for one feature, as text, with the room kept on screen.
   const ev = nextEvent(); viz?.goTo(ev, "before");
   let card = newCard(where, { wide: true });
-  card.append(el("p", { class: "lead", text: `Please read the descriptions of the versions given below on the right. Each version is the initial room with different ${fname}; everything else stays exactly the same.` }),
+  card.append(el("p", { class: "lead", text: `Please read the descriptions of the three versions given below on the right. Each version is the initial room with different ${fname}; everything else stays exactly the same.` }),
     el("p", { class: "lead", text: "The initial room is shown on the left." }));
-  const cols = el("div", { class: "two-col" }); card.append(cols);
-  keptRoom(cols, base, "Initial room");
-  const right = el("div", {}); cols.append(right);
-  questionOnce(right, Q.readVersions);
-  let sliders = versions.map((code, i) => {
-    const cell = el("div", { class: "cell" }, el("div", { class: "room-label", text: `Version ${LETTERS[i]}` }), describe(vOpts[i], [f]));
-    right.append(cell); return slider(cell, code, { question: "", hint: "" });
-  });
+  // The initial room as a picture and the three versions as text cards of the same size, in one row (17 Nov).
+  questionOnce(card, Q.readVersions);
+  const row = el("div", { class: "row-grid" }); card.append(row);
+  keptRoom(row, base, "Initial room").classList.add("cell");
+  let sliders = versions.map((code, i) => slider(roomCell(row, `Version ${LETTERS[i]}`, textRoom(vOpts[i], [f])), code, { question: "", hint: "" }));
   const msBefore = await nextButton(card, { ready: answered(...sliders), label: "See them" });
   const before = sliders.map((s, i) => remember(versions[i], s.value()));
 
@@ -561,7 +562,7 @@ async function featureRooms(q, where) {
   card.append(el("p", { class: "lead", text: `Please see the initial room shown below, and the new ${fname} options below it.` }));
   const top = el("div", { class: "original-top" }, el("div", { class: "room-label", text: "Initial room" }));
   picture(top, baseOpts);
-  top.append(describe(baseOpts), el("p", { class: "small", text: `You rated this room ${rangeText(baseRating)}.` }));
+  top.append(el("p", { class: "small", text: `You rated this room ${rangeText(baseRating)}.` }));   // picture only (17 Nov)
   card.append(top);
   card.append(el("p", { text: asOptions
     ? `Below, each picture shows only the new ${fname}, in the place it would be in the room. Imagine the room above with that ${fname} instead; everything else stays the same.`
@@ -606,9 +607,9 @@ const BLOCK_INTRO = {
       "You will be asked to read descriptions of one or two other rooms and rate them. The original room will remain on the screen as you complete this step.",
       "You will be shown all of the rooms together, including the original one, and asked to rate each of them again."],
       total(n)] },
-  feature: { title: "Changing one thing about a room",
+  feature: { title: "Changing one feature of a room",
     text: (n) => [STEPS, ["You will be shown a room and asked to rate it.",
-      "You will be asked to read about three versions of that room, each with one thing changed (for example, the lighting), and rate them.",
+      "You will be asked to read about three versions of that room, each with one feature changed (for example, the lighting), and rate them.",
       "You will be shown each new option on its own, together with the original room, and asked to rate the versions again."],
       total(n)] },
 };

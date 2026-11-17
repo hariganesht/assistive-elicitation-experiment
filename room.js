@@ -133,7 +133,22 @@ export class Room {
   setD(t) {
     this.clear(this.dec);
     if (t === "photo-frames") for (const [x, y, w, h, c] of [[-0.9, 3.5, 1.15, 1.25, 0xb54e3c], [0.65, 3.2, 1.35, 0.9, 0x3f6f80], [2.25, 3.55, 0.9, 1.15, 0xd09b43]]) { const frame = this.box(w + 0.12, h + 0.12, 0.05, this.dark, x, y, -4.65), art = this.box(w, h, 0.06, new THREE.MeshStandardMaterial({ color: c }), x, y, -4.61); this.dec.add(frame, art); }
-    if (t === "bicycle") { const mat = this.dark; for (const x of [-0.72, 0.72]) { const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.045, 10, 32), mat); wheel.position.set(x, 2.55, -4.61); this.dec.add(wheel); } const bar = (len, x, y, rot) => { const q = this.box(len, 0.07, 0.07, mat, x, y, -4.6); q.rotation.z = rot; this.dec.add(q); }; bar(1.55, 0, 2.62, 0); bar(1.1, -0.2, 2.82, 0.75); bar(1.05, 0.25, 2.85, -0.7); bar(0.8, 0.35, 3.15, 0.25); }
+    // Bicycle (17 Nov): red frame, black tyres and silver rims, so it shows on light, dark and brick walls alike.
+    if (t === "bicycle") {
+      const frame = new THREE.MeshStandardMaterial({ color: 0xd0342c, roughness: 0.45 });
+      const tyre = new THREE.MeshStandardMaterial({ color: 0x1c1c1c, roughness: 0.8 });
+      const rim = new THREE.MeshStandardMaterial({ color: 0xd8dadc, metalness: 0.5, roughness: 0.3 });
+      for (const x of [-0.8, 0.8]) {
+        const w = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.07, 10, 40), tyre); w.position.set(x, 2.55, -4.62);
+        const rr = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.035, 8, 40), rim); rr.position.set(x, 2.55, -4.6);
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.06, 16), rim); hub.rotation.x = Math.PI / 2; hub.position.set(x, 2.55, -4.58);
+        this.dec.add(w, rr, hub);
+      }
+      const bar = (len, x, y, rot, m = frame, t = 0.09) => { const q = this.box(len, t, t, m, x, y, -4.57); q.rotation.z = rot; this.dec.add(q); };
+      bar(1.0, -0.4, 2.55, 0); bar(1.05, -0.33, 2.98, 0.82); bar(1.0, 0.33, 2.98, -0.9); bar(1.05, 0.12, 3.33, 0.04); bar(0.95, 0.5, 2.88, 1.15);
+      bar(0.42, -0.27, 3.55, 0, tyre, 0.1);                 // saddle
+      bar(0.5, 0.82, 3.55, 0, tyre, 0.08);                  // handlebar
+    }
     if (t === "wall-bookshelf") for (let r = 0; r < 3; r++) { this.dec.add(this.box(3.4, 0.12, 0.42, this.wood, 1.2, 2.05 + r * 0.75, -4.48)); for (let i = 0; i < 7; i++) { const colors = [0x8d5947, 0x526b75, 0xb38a55, 0x6d7658]; const h = 0.38 + (i % 3) * 0.08; this.dec.add(this.box(0.18, h, 0.24, new THREE.MeshStandardMaterial({ color: colors[(i + r) % colors.length] }), -0.05 + i * 0.4, 2.3 + r * 0.75, -4.23)); } }
     if (t === "hanging-plants") {
       // Plants on wall shelves (28 Oct): leafy tops and trailing vines of small leaves, in terracotta pots.
@@ -164,19 +179,23 @@ export class Room {
     // (the front row used to look black from below).
     if (t === "bright-overhead") {
       const panel = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff3dc, emissiveIntensity: 1.2 });
+      const trim = new THREE.MeshStandardMaterial({ color: 0x55585c, metalness: 0.3, roughness: 0.5 });   // dark rim, so the lights show on a pale ceiling (17 Nov)
       for (const [x, z] of [[-3, -1.7], [0, -1.7], [3, -1.7], [-3, 1.4], [0, 1.4], [3, 1.4]]) {
-        const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.04, 36), panel); disc.position.set(x, 5.71, z); this.lit.add(disc);
+        const rimDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.05, 36), trim); rimDisc.position.set(x, 5.715, z); this.lit.add(rimDisc);
+        const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.06, 36), panel); disc.position.set(x, 5.7, z); this.lit.add(disc);
         add(x, 5.15, z, 18, 0xffe8c9);
       }
     }
     // Floor lamps (17 Nov): pale fabric shades that glow from inside, light spilling up and down, so the
     // lamps no longer look dark and shadowy.
     if (t === "localized-lamps") {
-      const shade = new THREE.MeshStandardMaterial({ color: 0xf4e6cc, emissive: 0xffd9a0, emissiveIntensity: 0.9, side: THREE.DoubleSide });
-      const brass = new THREE.MeshStandardMaterial({ color: 0xb49461, metalness: 0.4, roughness: 0.4 });
+      // Warmer linen shade with dark rims and a bronze pole (17 Nov), so the lamps stand out against pale walls.
+      const shade = new THREE.MeshStandardMaterial({ color: 0xe2b877, emissive: 0xffb860, emissiveIntensity: 0.75, side: THREE.DoubleSide });
+      const brass = new THREE.MeshStandardMaterial({ color: 0x5a4630, metalness: 0.4, roughness: 0.4 });
       for (const [x, z] of [[-4.2, -0.6], [4.2, -0.6]]) {
         this.lit.add(this.cyl(0.32, 0.05, brass, x, 0.1, z), this.cyl(0.045, 2.3, brass, x, 1.2, z));
         const s = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.58, 0.62, 32, 1, true), shade); s.position.set(x, 2.5, z); this.lit.add(s);
+        for (const [rad, yy] of [[0.42, 2.81], [0.58, 2.19]]) { const ring = new THREE.Mesh(new THREE.TorusGeometry(rad, 0.025, 8, 40), brass); ring.rotation.x = Math.PI / 2; ring.position.set(x, yy, z); this.lit.add(ring); }
         add(x, 2.3, z, 30); add(x, 2.9, z, 10, 0xffe2b8);
       }
     }
@@ -197,7 +216,7 @@ export class Room {
     // Chandelier (28 Oct): one brass fitting high in the middle of the ceiling, two rings of candle lights and
     // hanging crystals, brighter than before.
     if (t === "chandelier") {
-      const brass = new THREE.MeshStandardMaterial({ color: 0xc9a25a, metalness: 0.4, roughness: 0.35 });
+      const brass = new THREE.MeshStandardMaterial({ color: 0x8a6528, metalness: 0.45, roughness: 0.35 });   // darker brass (17 Nov)
       const flame = new THREE.MeshStandardMaterial({ color: 0xfff0c8, emissive: 0xffcf7a, emissiveIntensity: 1.8 });
       const crystal = new THREE.MeshStandardMaterial({ color: 0xdff2ff, emissive: 0x9fc9e8, emissiveIntensity: 0.35, roughness: 0.1, transparent: true, opacity: 0.85 });
       const cx = 0, cz = 0.6;
