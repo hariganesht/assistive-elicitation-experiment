@@ -80,8 +80,8 @@ const Q = {
   options: "Now that you can see the new options, how much do you think you would like each version of the room?",
 };
 const HINT = CONFIG.rangeWording === "90"
-  ? "Give a range you are 90% sure your rating would fall in."
-  : "Give the lowest and highest rating you think you could end up giving it.";
+  ? "Give a range you are 90% sure your rating would fall in. To set your range, press on the line and drag the slider."
+  : "Give the lowest and highest rating you think you could end up giving it. To set your range, press on the line and drag the slider.";
 const SCALE = [[-50, "Strongly dislike"], [-25, "Dislike"], [0, "Neutral"], [25, "Like"], [50, "Strongly like"]];
 
 const seed = Number(params.get("seed")) || Math.floor(Math.random() * 2 ** 31);
@@ -179,7 +179,7 @@ function newCard(where, { wide = false } = {}) {
   screenEl.append(card); if (!VIZ) window.scrollTo(0, 0);
   return card;
 }
-function setProgress(x) { document.querySelector("#progressFill").style.width = `${Math.round(100 * x)}%`; }
+function setProgress(x) { const f = document.querySelector("#progressFill"); if (f) f.style.width = `${Math.round(100 * x)}%`; }   // progress bar removed 17 Nov
 function nextButton(card, { label = "Continue", minMs = 0, ready = () => true } = {}) {
   const error = el("div", { class: "error" });
   const button = el("button", { class: "button", text: label });
@@ -223,7 +223,7 @@ function rangeSlider({ question = "", hint = "" } = {}, onChange) {
     let a = Number(lo.value), b = Number(hi.value);
     if (a > b) { [a, b] = [b, a]; lo.value = a; hi.value = b; }
     fill.style.left = pos(a); fill.style.width = `${b - a}%`;
-    readout.textContent = touched ? (a === b ? `Exactly ${fmt(a)}` : `From ${fmt(a)} to ${fmt(b)}`) : "Press on the line and drag to set your range";
+    readout.textContent = touched ? (a === b ? `Exactly ${fmt(a)}` : `From ${fmt(a)} to ${fmt(b)}`) : "";
   };
   const changed = () => { draw(); if (touched) onChange?.({ low: Number(lo.value), high: Number(hi.value) }); };
   const setRange = (p, q) => { lo.value = Math.min(p, q); hi.value = Math.max(p, q); touched = true; node.classList.remove("untouched"); changed(); };
@@ -464,7 +464,7 @@ async function singleRoom(q, where) {
   const code = q.shown[0], options = roomOptions(code), ev = nextEvent();
   viz?.goTo(ev, "before");
   let card = newCard(where);
-  card.append(el("h2", { text: "Here is a description of a room" }), el("p", { text: "Read it carefully and try to picture what the room might look like." }), describe(options));
+  card.append(el("p", { class: "lead", text: "Please carefully read the given description of a room, and try to picture what the room might look like." }), describe(options));
   let s = slider(card, code, { question: Q.read });
   const msBefore = await nextButton(card, { ready: answered(s), label: "See the room" });
   const before = remember(code, s.value());
@@ -593,27 +593,34 @@ async function featureRooms(q, where) {
 const NUM = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight"];
 const BLOCK_INTRO = {
   single: { title: "Observing individual rooms",
-    text: (n) => [`In total, there will be ${NUM[n] ?? n} iterations in this task. In each iteration, you will be asked to read a description of a room and rate it.`,
+    text: (n) => [`In total, there will be ${n === 1 ? "one iteration" : `${NUM[n] ?? n} iterations`} in this task. In each iteration, you will be asked to read a description of a room and rate it.`,
       "You will then be shown the actual room, and asked to rate it again.",
       "Following this, you will be asked to read descriptions of a few other rooms and rate each of them. The room you saw stays on the screen while you do this."] },
   preference: { title: "Comparing rooms",
-    text: (n) => [`In total, there will be ${NUM[n] ?? n} iterations in this task. In each iteration, you will first be shown a room and asked to rate it.`,
+    text: (n) => [`In total, there will be ${n === 1 ? "one iteration" : `${NUM[n] ?? n} iterations`} in this task. In each iteration, you will first be shown a room and asked to rate it.`,
       "You will then be asked to read descriptions of one or two other rooms and rate them.",
       "Following this, you will be shown all of the rooms together, including the first one, and asked to rate each of them again."] },
   feature: { title: "Changing one thing about a room",
-    text: (n) => [`In total, there will be ${NUM[n] ?? n} iterations in this task. In each iteration, you will first be shown a room and asked to rate it.`,
+    text: (n) => [`In total, there will be ${n === 1 ? "one iteration" : `${NUM[n] ?? n} iterations`} in this task. In each iteration, you will first be shown a room and asked to rate it.`,
       "You will then be asked to read about three versions of that room, each with one thing changed (for example, the lighting), and rate them.",
       "Following this, you will be shown each new option on its own, next to the original room, and asked to rate the versions again."] },
 };
+// A pop-up over the page (17 Nov): the introduction to each task.
+function popup(title, paragraphs, label = "Start") {
+  screenEl.replaceChildren(); if (!VIZ) window.scrollTo(0, 0);
+  const button = el("button", { class: "button", text: label });
+  const box = el("div", { class: "modal", role: "dialog", "aria-modal": "true" },
+    el("h2", { text: title }), ...paragraphs.map((t) => el("p", { text: t })), el("div", { class: "actions" }, button));
+  const back = el("div", { class: "modal-back" }, box);
+  document.body.append(back); button.focus();
+  return new Promise((resolve) => { button.onclick = () => { back.remove(); resolve(); }; });
+}
 async function runBlocks() {
   const total = blocks.reduce((n, b) => n + b.tasks.length, 0);
   let done = 0;
   for (const [bi, b] of blocks.entries()) {
     const part = `Task ${bi + 1} of ${blocks.length}: ${BLOCK_INTRO[b.kind].title}`;
-    const intro = newCard(part);
-    intro.append(el("h2", { text: `Task ${bi + 1}: ${BLOCK_INTRO[b.kind].title}` }),
-      ...BLOCK_INTRO[b.kind].text(b.tasks.length).map((t) => el("p", { text: t })));
-    await nextButton(intro);
+    await popup(`Task ${bi + 1}: ${BLOCK_INTRO[b.kind].title}`, BLOCK_INTRO[b.kind].text(b.tasks.length));
     if (b.kind === "feature" && CONFIG.featureReminder) await reminder(part);
     for (const [i, q] of b.tasks.entries()) {
       const where = `${part} (iteration ${i + 1} of ${b.tasks.length})`;
