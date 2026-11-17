@@ -344,13 +344,13 @@ async function practice() {
 
 const PARTS = 1 + blocks.length;   // part 1: the options; then one part per block
 async function features() {
-  const intro = newCard(`Part 1 of ${PARTS}: Familiarize yourself with the options available`);
+  const intro = newCard("Before the tasks: familiarize yourself with the options available");
   intro.append(el("h2", { text: "The options" }),
     el("p", { text: "First you will see the four options for each part of the room. Each option is shown on its own, where it would be in the room. Please look at them carefully. There is nothing to answer." }));
   await nextButton(intro);
   for (const [i, f] of shuffle(FEATURES).entries()) {
     setProgress(0.03 + 0.1 * (i / 4));
-    const card = newCard(`Part 1 of ${PARTS}: Familiarize yourself with the options available`, { wide: true });
+    const card = newCard("Before the tasks: familiarize yourself with the options available", { wide: true });
     card.append(el("h2", { text: `Here are the four kinds of ${FEATURE_NAMES[f].toLowerCase()} you will see in this study` }), el("p", { text: "Take a moment to look at each one. You will be asked about them shortly." }));
     const grid = el("div", { class: "row-grid" }); card.append(grid);
     const order = shuffle(LEVELS[f]);
@@ -368,7 +368,7 @@ async function features() {
 // shown on its own; which one is it? After a wrong answer (17 Nov) people see that feature's four options again and
 // get another question on it, until they answer one right.
 async function optionCheck() {
-  const where = `Part 1 of ${PARTS}: Familiarize yourself with the options available`;
+  const where = "Before the tasks: familiarize yourself with the options available";
   for (const f of shuffle(FEATURES)) {
     const fname = FEATURE_NAMES[f].toLowerCase();
     let asked = [];
@@ -589,26 +589,34 @@ async function featureRooms(q, where) {
   record(ev, "feature", rows, best, 4);
 }
 
+// Introductions to the three blocks (17 Nov wording). n: number of iterations in the block.
+const NUM = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight"];
 const BLOCK_INTRO = {
-  single: { title: "Rooms one at a time",
-    text: "In each task you read the description of a room and rate it, then see the room and rate it again. Then you read about a few similar rooms and rate them; the room you saw stays on the screen." },
+  single: { title: "Observing individual rooms",
+    text: (n) => [`In total, there will be ${NUM[n] ?? n} iterations in this task. In each iteration, you will be asked to read a description of a room and rate it.`,
+      "You will then be shown the actual room, and asked to rate it again.",
+      "Following this, you will be asked to read descriptions of a few other rooms and rate each of them. The room you saw stays on the screen while you do this."] },
   preference: { title: "Comparing rooms",
-    text: "In each task you see a room and rate it. Then you read about one or two other rooms and rate them. Then you see all of them together, the first room included, and rate them again." },
-  feature: { title: "Changing one thing",
-    text: "In each task you see a room and rate it. Then you read about three versions of it that change one thing, for example the lighting, and rate them. Then you see each new option on its own and rate the versions again." },
+    text: (n) => [`In total, there will be ${NUM[n] ?? n} iterations in this task. In each iteration, you will first be shown a room and asked to rate it.`,
+      "You will then be asked to read descriptions of one or two other rooms and rate them.",
+      "Following this, you will be shown all of the rooms together, including the first one, and asked to rate each of them again."] },
+  feature: { title: "Changing one thing about a room",
+    text: (n) => [`In total, there will be ${NUM[n] ?? n} iterations in this task. In each iteration, you will first be shown a room and asked to rate it.`,
+      "You will then be asked to read about three versions of that room, each with one thing changed (for example, the lighting), and rate them.",
+      "Following this, you will be shown each new option on its own, next to the original room, and asked to rate the versions again."] },
 };
 async function runBlocks() {
   const total = blocks.reduce((n, b) => n + b.tasks.length, 0);
   let done = 0;
   for (const [bi, b] of blocks.entries()) {
-    const part = `Part ${bi + 2} of ${PARTS}: ${BLOCK_INTRO[b.kind].title}`;
+    const part = `Task ${bi + 1} of ${blocks.length}: ${BLOCK_INTRO[b.kind].title}`;
     const intro = newCard(part);
-    intro.append(el("h2", { text: BLOCK_INTRO[b.kind].title }),
-      el("p", { text: `${BLOCK_INTRO[b.kind].text} There are ${b.tasks.length} tasks in this part.` }));
+    intro.append(el("h2", { text: `Task ${bi + 1}: ${BLOCK_INTRO[b.kind].title}` }),
+      ...BLOCK_INTRO[b.kind].text(b.tasks.length).map((t) => el("p", { text: t })));
     await nextButton(intro);
     if (b.kind === "feature" && CONFIG.featureReminder) await reminder(part);
     for (const [i, q] of b.tasks.entries()) {
-      const where = `${part} (task ${i + 1} of ${b.tasks.length})`;
+      const where = `${part} (iteration ${i + 1} of ${b.tasks.length})`;
       setProgress(0.15 + 0.83 * (done / total));
       if (q.kind === "single") await singleRoom(q, where);
       else if (q.kind === "preference") await preferenceTask(q, where);
