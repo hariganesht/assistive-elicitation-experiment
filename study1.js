@@ -340,7 +340,8 @@ async function practice() {
   const s1 = rangeSlider({ question: "How much do you think you would like this kitchen?", hint: HINT });
   t.center.append(s1.node);
   t.say("Practice: this kitchen is not part of the study.",
-    "Drag on the line to mark a range: <b>wide</b> if you are unsure, <b>narrow</b> if you are sure.");
+    "Click on the line and drag along it to mark a range.",
+    "Make the range wider if you aren’t sure how much you would like the kitchen, and narrower if you are!");
   const ms1 = await nextButton(t.center, { ready: answered(s1) });
   const first = s1.value();
   // Step 2: the kitchen itself; the earlier answer is on the slider.
