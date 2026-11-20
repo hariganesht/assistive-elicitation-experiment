@@ -348,7 +348,7 @@ async function practice() {
   const first = s1.value();
   // Step 2: the kitchen itself; the earlier answer is on the slider.
   t = tutCard("Using the slider");
-  t.center.append(lead("Please see the kitchen shown below."));
+  t.center.append(lead("You will now see a picture of the kitchen below."));
   picture(t.center, { scene: "kitchen" });
   const s2 = rangeSlider({ question: "How much do you actually like this kitchen?",
     hint: "Give the lowest and highest rating you think you could end up giving it. Your earlier answer is the green band above the line." });
