@@ -315,14 +315,10 @@ function points(items) {
     el("li", {}, el("div", { class: "point-main", text: main }), detail ? el("div", { class: "point-detail", text: detail }) : "", extra ?? "")));
 }
 
-// Tutorial: Using the Slider (20 Nov, Zhi-Xuan): a worked example before the quiz, with the same steps as
-// Task 1 but a kitchen, whose four features lie outside the study's rooms. Step 1 rates it from a description;
-// step 2 shows the kitchen (a rendered picture) with the earlier answer on the slider; step 3 rates another
-// kitchen that shares two features, with the first beside it.
+// Tutorial: Using the Slider (20 Nov, Zhi-Xuan): practice with the interface on a kitchen, whose four features
+// lie outside the study's rooms, before the quiz.
 const KITCHEN = [["Cabinets", "glossy red cabinets"], ["Island", "a white marble island with three bar stools"],
   ["Floor", "black-and-white checkerboard tiles"], ["Backsplash", "deep blue tiles behind the counter"]];
-const KITCHEN2 = [["Cabinets", "glossy red cabinets"], ["Island", "a round wooden table with four chairs"],
-  ["Floor", "black-and-white checkerboard tiles"], ["Backsplash", "plain white tiles behind the counter"]];
 const exampleTable = (rows) => el("table", { class: "description" }, ...rows.map(([k, v]) => el("tr", {}, el("th", { text: k }), el("td", { text: v }))));
 // Tutorial pages (20 Nov), laid out like the Block Words tutorial: "Tutorial" on the left, the example in the
 // middle with the Next button under it, and the explanation on the right in short paragraphs.
@@ -335,47 +331,32 @@ function tutCard(step) {
 
 async function instructions() {}   // the explanation is now on the example pages themselves (20 Nov)
 
+// Practice with the interface only (20 Nov): two steps. The middle column looks exactly like the task; the right
+// column says only how the slider works, without repeating the task's own wording.
 async function practice() {
-  const how = CONFIG.rangeWording === "90"
-    ? "a range that you are 90% sure your rating would fall in"
-    : "the lowest and highest rating you think you could end up giving";
   // Step 1: a description only.
-  let t = tutCard("Using the slider · 1 of 3");
+  let t = tutCard("Using the slider · 1 of 2");
   t.center.append(lead("Please carefully read the given description of a kitchen, and try to picture what it might look like."), exampleTable(KITCHEN));
   const s1 = rangeSlider({ question: "How much do you think you would like this kitchen?", hint: HINT });
   t.center.append(s1.node);
-  t.say("In this study, you will read about rooms and see them, and tell us how much you like them. Let's practise with a kitchen. It is not one of the rooms in the study.",
-    "Here you can only read a description of the kitchen. Try to picture it.",
-    `Rate it on the scale from −50 (strongly dislike) to +50 (strongly like). Instead of a single number, give ${how}: if you are unsure, make the range wide; if you are sure, make it narrow, or put both ends on the same point.`,
-    "Press on the line and drag to set your range, then hit <b>Continue</b>.");
+  t.say("This is a practice screen. The kitchen is not part of the study.",
+    "The slider runs from −50 (strongly dislike) to +50 (strongly like). Press on the line and drag to mark a range; you can then drag either end to adjust it.",
+    "A wide range means you are unsure. A narrow range, or both ends on one point, means you are sure.",
+    "Hit <b>Continue</b> when you are done.");
   const ms1 = await nextButton(t.center, { ready: answered(s1) });
   const first = s1.value();
   // Step 2: the kitchen itself; the earlier answer is on the slider.
-  t = tutCard("Using the slider · 2 of 3");
+  t = tutCard("Using the slider · 2 of 2");
   t.center.append(lead("Please see the kitchen shown below."));
   picture(t.center, { scene: "kitchen" });
   const s2 = rangeSlider({ question: "How much do you actually like this kitchen?", hint: HINT });
   s2.prev(first);
   t.center.append(s2.node);
-  t.say("Now you can see the kitchen you read about.",
-    "Your earlier answer is shown just above the line. Now that you have seen the kitchen, how much do you actually like it? You may keep your range or change it.",
-    "In the study, this is when you see the room you read about.",
-    "Set your range, then hit <b>Continue</b>.");
+  t.say("When you rate something again, your earlier answer is shown as a green band above the line.",
+    "You can keep it or set a new range.",
+    "Hit <b>Continue</b> when you are done.");
   const ms2 = await nextButton(t.center, { ready: answered(s2), minMs: CONFIG.minRoomViewMs });
-  const second = s2.value();
-  // Step 3: another kitchen from its description, with the first one kept on screen.
-  t = tutCard("Using the slider · 3 of 3");
-  t.center.append(el("div", { class: "room-label", text: "Initial kitchen" }));
-  picture(t.center, { scene: "kitchen" });
-  t.center.append(el("p", { class: "small", text: `You rated this kitchen ${rangeText(second)}.` }),
-    el("div", { class: "room-label", text: "New kitchen" }), exampleTable(KITCHEN2));
-  const s3 = rangeSlider({ question: "How much do you think you would like this kitchen?", hint: HINT });
-  t.center.append(s3.node);
-  t.say("Next, you read about another kitchen. It has the same cabinets and floor as the one you saw, but a different island and backsplash.",
-    "The kitchen you saw stays on screen, with your rating of it. How much do you think you would like the new one?",
-    "Set your range, then hit <b>Continue</b>.");
-  const ms3 = await nextButton(t.center, { ready: answered(s3) });
-  data.practice = { first: { ...first, ms: ms1 }, second: { ...second, ms: ms2 }, other: { ...s3.value(), ms: ms3 } };
+  data.practice = { first: { ...first, ms: ms1 }, second: { ...s2.value(), ms: ms2 } };
 }
 
 // Numbered multiple-choice questions on one screen. items: [{ q, a: [answers], right, picture? }].
