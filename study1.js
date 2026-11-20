@@ -169,7 +169,7 @@ function backup() { try { localStorage.setItem(backupKey, JSON.stringify(data));
 const screenEl = document.querySelector("#screen");
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) { if (k === "class") node.className = v; else if (k === "text") node.textContent = v; else node.setAttribute(k, v); }
+  for (const [k, v] of Object.entries(attrs)) { if (k === "class") node.className = v; else if (k === "text") node.textContent = v; else if (k === "html") node.innerHTML = v; /* our own fixed strings only */ else node.setAttribute(k, v); }
   node.append(...children);
   return node;
 }
@@ -324,46 +324,57 @@ const KITCHEN = [["Cabinets", "glossy red cabinets"], ["Island", "a white marble
 const KITCHEN2 = [["Cabinets", "glossy red cabinets"], ["Island", "a round wooden table with four chairs"],
   ["Floor", "black-and-white checkerboard tiles"], ["Backsplash", "plain white tiles behind the counter"]];
 const exampleTable = (rows) => el("table", { class: "description" }, ...rows.map(([k, v]) => el("tr", {}, el("th", { text: k }), el("td", { text: v }))));
-async function instructions() {
-  const how = CONFIG.rangeWording === "90"
-    ? "Give a range that you are 90% sure your rating would fall in."
-    : "Give the lowest and highest rating you think you could end up giving.";
-  await popup(TUT_SLIDER, [
-    "Throughout this study, you will rate how much you like things on a scale from −50 (strongly dislike) through 0 (neutral) to +50 (strongly like).",
-    `Instead of a single number, you give a range: ${how[0].toLowerCase()}${how.slice(1)} If you are unsure, make the range wide. If you are sure, make it narrow, or put both ends on the same point.`,
-    "Let's practise with an example: a kitchen, whose features are not part of the study. The steps are the same as in the first task of the study."], "Start the example");
+// Tutorial pages (20 Nov), laid out like the Block Words tutorial: "Tutorial" on the left, the example in the
+// middle with the Next button under it, and the explanation on the right in short paragraphs.
+function tutCard(step) {
+  const card = newCard(null, { wide: true });
+  const center = el("div", { class: "tut-center" }), side = el("div", { class: "tut-side" });
+  card.append(el("div", { class: "tut" }, el("div", { class: "tut-title" }, el("div", { text: "Tutorial" }), el("div", { class: "tut-step", text: step })), center, side));
+  return { center, side, say: (...ps) => side.append(...ps.map((t) => el("p", { html: t }))) };
 }
 
+async function instructions() {}   // the explanation is now on the example pages themselves (20 Nov)
+
 async function practice() {
-  const step = (k) => `${TUT_SLIDER} · Example, step ${k} of 3`;
+  const how = CONFIG.rangeWording === "90"
+    ? "a range that you are 90% sure your rating would fall in"
+    : "the lowest and highest rating you think you could end up giving";
   // Step 1: a description only.
-  let card = newCard(step(1));
-  card.append(lead("Please carefully read the given description of a kitchen, and try to picture what it might look like."), exampleTable(KITCHEN));
+  let t = tutCard("Using the slider · 1 of 3");
+  t.center.append(lead("Please carefully read the given description of a kitchen, and try to picture what it might look like."), exampleTable(KITCHEN));
   const s1 = rangeSlider({ question: "How much do you think you would like this kitchen?", hint: HINT });
-  card.append(s1.node);
-  const ms1 = await nextButton(card, { ready: answered(s1) });
+  t.center.append(s1.node);
+  t.say("In this study, you will read about rooms and see them, and tell us how much you like them. Let's practise with a kitchen. It is not one of the rooms in the study.",
+    "Here you can only read a description of the kitchen. Try to picture it.",
+    `Rate it on the scale from −50 (strongly dislike) to +50 (strongly like). Instead of a single number, give ${how}: if you are unsure, make the range wide; if you are sure, make it narrow, or put both ends on the same point.`,
+    "Press on the line and drag to set your range, then hit <b>Continue</b>.");
+  const ms1 = await nextButton(t.center, { ready: answered(s1) });
   const first = s1.value();
   // Step 2: the kitchen itself; the earlier answer is on the slider.
-  card = newCard(step(2));
-  card.append(lead("Please see the kitchen shown below."));
-  picture(card, { scene: "kitchen" });
+  t = tutCard("Using the slider · 2 of 3");
+  t.center.append(lead("Please see the kitchen shown below."));
+  picture(t.center, { scene: "kitchen" });
   const s2 = rangeSlider({ question: "How much do you actually like this kitchen?", hint: HINT });
   s2.prev(first);
-  card.append(s2.node, el("p", { class: "small", text: "Your earlier answer is shown above the line. You may keep it or change it, depending on what you think now." }));
-  const ms2 = await nextButton(card, { ready: answered(s2), minMs: CONFIG.minRoomViewMs });
+  t.center.append(s2.node);
+  t.say("Now you can see the kitchen you read about.",
+    "Your earlier answer is shown just above the line. Now that you have seen the kitchen, how much do you actually like it? You may keep your range or change it.",
+    "In the study, this is when you see the room you read about.",
+    "Set your range, then hit <b>Continue</b>.");
+  const ms2 = await nextButton(t.center, { ready: answered(s2), minMs: CONFIG.minRoomViewMs });
   const second = s2.value();
   // Step 3: another kitchen from its description, with the first one kept on screen.
-  card = newCard(step(3), { wide: true });
-  card.append(lead("Please read the description of the kitchen given below on the right. It shares some features with the kitchen you just saw, which is shown on the left."));
-  questionOnce(card, "How much do you think you would like this kitchen?");
-  const grid = el("div", { class: "row-grid two" }); card.append(grid);
-  const left = el("div", { class: "cell kept" }, el("div", { class: "room-label", text: "Initial kitchen" }));
-  picture(left, { scene: "kitchen" });
-  left.append(el("p", { class: "small", text: `You rated this kitchen ${rangeText(second)}.` }));
-  grid.append(left);
-  const s3 = rangeSlider({ question: "", hint: "" });
-  roomCell(grid, "New kitchen", exampleTable(KITCHEN2)).append(s3.node);
-  const ms3 = await nextButton(card, { ready: answered(s3) });
+  t = tutCard("Using the slider · 3 of 3");
+  t.center.append(el("div", { class: "room-label", text: "Initial kitchen" }));
+  picture(t.center, { scene: "kitchen" });
+  t.center.append(el("p", { class: "small", text: `You rated this kitchen ${rangeText(second)}.` }),
+    el("div", { class: "room-label", text: "New kitchen" }), exampleTable(KITCHEN2));
+  const s3 = rangeSlider({ question: "How much do you think you would like this kitchen?", hint: HINT });
+  t.center.append(s3.node);
+  t.say("Next, you read about another kitchen. It has the same cabinets and floor as the one you saw, but a different island and backsplash.",
+    "The kitchen you saw stays on screen, with your rating of it. How much do you think you would like the new one?",
+    "Set your range, then hit <b>Continue</b>.");
+  const ms3 = await nextButton(t.center, { ready: answered(s3) });
   data.practice = { first: { ...first, ms: ms1 }, second: { ...second, ms: ms2 }, other: { ...s3.value(), ms: ms3 } };
 }
 
@@ -385,17 +396,17 @@ async function check() {
     { q: "You have no idea whether you would like a room. What do you do?", a: ["Put both handles on 0", "Give a wide range, for example −40 to +40", "Give a narrow range around 0"], right: 1 },
   ];
   for (let attempt = 1; ; attempt++) {
-    const card = newCard(TUT_SLIDER);
-    card.append(lead("Well done! Before moving on, please answer two short questions about the slider."));
-    const { groups, pick, ready } = questionsCard(card, qs);
-    card.append(...groups);
-    await nextButton(card, { ready });
+    const t = tutCard("Using the slider · questions");
+    const { groups, pick, ready } = questionsCard(t.center, qs);
+    t.center.append(...groups);
+    t.say("Well done!", "Before moving on, please answer two short questions about the slider, then hit <b>Continue</b>.");
+    await nextButton(t.center, { ready });
     const ok = qs.every((item, i) => pick(i) === item.right);
     data.check.push({ attempt, answers: qs.map((_, i) => pick(i)), ok });
     if (ok) return;
-    const again = newCard(TUT_SLIDER);
-    again.append(lead("Not quite. The lowest and highest ratings show how sure you are: the same point if you are certain, a wide range if you are unsure. Please try again."));
-    await nextButton(again);
+    const again = tutCard("Using the slider · questions");
+    again.say("Not quite.", "The lowest and highest ratings show how sure you are: the same point if you are certain, a wide range if you are unsure.", "Hit <b>Continue</b> to try the questions again.");
+    await nextButton(again.center, { label: "Continue" });
   }
 }
 
