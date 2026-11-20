@@ -299,12 +299,10 @@ async function welcome() {
   const card = newCard();
   // 20 Nov (Zhi-Xuan): a more informative title and a short motivation; consent is handled on Prolific.
   card.append(el("div", { class: "page-title", text: "Learning What Rooms You Like" }),
-    el("p", { class: "lead", text: "Welcome to our study on how people learn their own preferences! In this study, we will show you descriptions and images of various rooms, and ask you to judge how much you like these rooms as more information about each room is provided." }),
-    el("p", { class: "lead", text: "Please note:" }),
-    numbered(["We estimate this task will take about 20 minutes to complete.",
-      "There are no right or wrong answers! We would like your opinions.",
-      "You will first be taken through a short tutorial before proceeding to the actual tasks."]));
-  await nextButton(card, { label: "Begin" });
+    lead("Welcome to our study on how people learn their own preferences!"),
+    lead("In this study, we will show you descriptions and images of various rooms, and ask you to judge how much you like these rooms as more information about each room is provided. Remember: there are no right or wrong answers, we want your opinions."),
+    lead("The task should take about 15 minutes to complete. Before you begin, you will be asked to complete a short tutorial. Press next to continue!"));
+  await nextButton(card, { label: "Next" });
 }
 
 // Tutorial (17 Nov): numbered instructions, numbered questions, and the same header on every tutorial screen.
