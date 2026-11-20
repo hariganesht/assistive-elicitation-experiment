@@ -297,18 +297,18 @@ const nextEvent = () => ++eventIndex;
 // ---------------------------------------------------------------- screens: introduction
 async function welcome() {
   const card = newCard();
-  card.append(el("div", { class: "page-title", text: "Study 1 for Assistive Elicitation" }),
-    el("p", { class: "lead", text: "In this study, you will observe various room configurations either by reading a textual description, or by seeing the room itself. Following this, you will be asked to rate each room." }),
-    el("p", { class: "lead", text: "Please additionally note:" }),
+  // 20 Nov (Zhi-Xuan): a more informative title and a short motivation; consent is handled on Prolific.
+  card.append(el("div", { class: "page-title", text: "Learning What Rooms You Like" }),
+    el("p", { class: "lead", text: "Welcome to our study on how people learn their own preferences! In this study, we will show you descriptions and images of various rooms, and ask you to judge how much you like these rooms as more information about each room is provided." }),
+    el("p", { class: "lead", text: "Please note:" }),
     numbered(["We estimate this task will take about 20 minutes to complete.",
       "There are no right or wrong answers! We would like your opinions.",
-      "You will first be taken through a tutorial before proceeding to the actual tasks."]),
-    el("p", { text: "[Consent information]" }));   // TODO: approved consent text
+      "You will first be taken through a short tutorial before proceeding to the actual tasks."]));
   await nextButton(card, { label: "Begin" });
 }
 
 // Tutorial (17 Nov): numbered instructions, numbered questions, and the same header on every tutorial screen.
-const TUT_SLIDER = "Tutorial for slider", TUT_FEATURES = "Tutorial for features";
+const TUT_SLIDER = "Tutorial: Using the Slider", TUT_FEATURES = "Tutorial: Room Features";
 const lead = (text) => el("p", { class: "lead", text });
 const numbered = (items) => el("ol", { class: "steps" }, ...items.map((t) => el("li", { text: t })));
 
@@ -318,19 +318,38 @@ function points(items) {
     el("li", {}, el("div", { class: "point-main", text: main }), detail ? el("div", { class: "point-detail", text: detail }) : "", extra ?? "")));
 }
 
+// Tutorial: Using the Slider (20 Nov, Zhi-Xuan): a worked example first, with a place outside the room space
+// (a café), so people use the real slider before the quiz. Step 1 rates the café from a description; step 2
+// adds information and shows the earlier answer, as happens in the tasks.
+const CAFE = [["Seating", "wooden benches by the window"], ["Lighting", "strings of warm fairy lights"],
+  ["Walls", "painted deep green"], ["Decor", "a large chalkboard menu"]];
+const cafeTable = () => el("table", { class: "description" }, ...CAFE.map(([k, v]) => el("tr", {}, el("th", { text: k }), el("td", { text: v }))));
 async function instructions() {
   const how = CONFIG.rangeWording === "90"
-    ? "You will be asked to give a range that you are 90% sure your rating would fall in. If you are unsure, give a wide range, for example −20 to +30. If you are sure, give a narrow range, or put both ends on the same point."
-    : "You will be asked to give the lowest and highest rating you think you could end up giving the room. If you are unsure, give a wide range, for example −20 to +30. If you are sure, give a narrow range, or put both ends on the same point.";
+    ? "Give a range that you are 90% sure your rating would fall in."
+    : "Give the lowest and highest rating you think you could end up giving.";
   await popup(TUT_SLIDER, [
-    "Please read the following instructions carefully.",
-    [
-      "Each room has four features that can vary: the furniture, the lighting, the walls and the wall decor.",
-      `For every room, you will be asked: "${QUESTION}" You will answer on a scale from −50 (strongly dislike) through 0 (neutral) to +50 (strongly like).`,
-      how,
-      "In some steps you will only read a description of a room, and in others you will also be shown the room. When you rate a room again, your earlier answer will be shown on the scale. You may keep it or change it, depending on what you think now.",
-    ],
-  ], "Continue");
+    "Throughout this study, you will rate how much you like things on a scale from −50 (strongly dislike) through 0 (neutral) to +50 (strongly like).",
+    `Instead of a single number, you give a range: ${how[0].toLowerCase()}${how.slice(1)} If you are unsure, make the range wide. If you are sure, make it narrow, or put both ends on the same point.`,
+    "Let's practise with an example. It is not one of the rooms in the study."], "Start the example");
+}
+
+async function practice() {
+  // Step 1: a description only.
+  let card = newCard(TUT_SLIDER);
+  card.append(lead("Example, step 1 of 2. Please read the description of this café, and picture what it might be like."), cafeTable());
+  const s1 = rangeSlider({ question: "How much do you think you would like this café?", hint: HINT });
+  card.append(s1.node);
+  const ms1 = await nextButton(card, { ready: answered(s1) });
+  const first = s1.value();
+  // Step 2: more information; the earlier answer is shown.
+  card = newCard(TUT_SLIDER);
+  card.append(lead("Example, step 2 of 2. Now imagine you visit the café. It is just as described, but the benches are hard and the music is quite loud."), cafeTable());
+  const s2 = rangeSlider({ question: "Now, how much do you like this café?", hint: HINT });
+  s2.prev(first);
+  card.append(s2.node, el("p", { class: "small", text: "Your earlier answer is shown above the line. You may keep it or change it, depending on what you think now. In the study, the new information will usually be a picture of the room." }));
+  const ms2 = await nextButton(card, { ready: answered(s2) });
+  data.practice = { first: { ...first, ms: ms1 }, second: { ...s2.value(), ms: ms2 } };
 }
 
 // Numbered multiple-choice questions on one screen. items: [{ q, a: [answers], right, picture? }].
@@ -352,7 +371,7 @@ async function check() {
   ];
   for (let attempt = 1; ; attempt++) {
     const card = newCard(TUT_SLIDER);
-    card.append(lead("Please answer the following questions about the slider."));
+    card.append(lead("Well done! Before moving on, please answer two short questions about the slider."));
     const { groups, pick, ready } = questionsCard(card, qs);
     card.append(...groups);
     await nextButton(card, { ready });
@@ -363,15 +382,6 @@ async function check() {
     again.append(lead("Not quite. The lowest and highest ratings show how sure you are: the same point if you are certain, a wide range if you are unsure. Please try again."));
     await nextButton(again);
   }
-}
-
-async function practice() {
-  const card = newCard(TUT_SLIDER);
-  card.append(lead("To try the scale, press on the line and drag to set your range. You can then drag either end."));
-  const s = rangeSlider({ question: "How much do you like rainy days?", hint: HINT });
-  card.append(s.node);
-  const ms = await nextButton(card, { ready: answered(s) });
-  data.practice = { ...s.value(), ms };
 }
 
 const PARTS = 1 + blocks.length;   // part 1: the options; then one part per block
@@ -385,12 +395,13 @@ function optionGrid(parent, f, order) {
 }
 async function features() {
   await popup(TUT_FEATURES, [
-    "You will now see the four options for each feature of the room. Each feature is shown separately, corresponding to where it would be placed in the room.",
-    "Please look at them carefully. You will not be required to answer any questions for this section of the tutorial."], "Continue");
+    "Each room in this study has four features: the furniture, the lighting, the walls and the wall decor. Each feature has four options.",
+    "On the next screens, you will see the four options for each feature, each shown on its own in an empty room, where it would be placed.",
+    "Please look at them carefully. Afterwards, you will be asked two short questions about them."], "Continue");
   for (const [i, f] of shuffle(FEATURES).entries()) {
     setProgress(0.03 + 0.1 * (i / 4));
     const card = newCard(TUT_FEATURES, { wide: true });
-    card.append(lead(`The four options for the ${FEATURE_NAMES[f].toLowerCase()} feature are shown below, along with a brief description of what the room entails.`));
+    card.append(lead(`Here are the four options for the ${FEATURE_NAMES[f].toLowerCase()}. The words under each picture are how this option will be described in the study.`));
     const order = shuffle(LEVELS[f]);
     optionGrid(card, f, order);
     const ms = await nextButton(card, { minMs: CONFIG.minFeatureViewMs });
@@ -414,7 +425,7 @@ async function optionCheck() {
       return { f, option, choices: a, q: `Which option for the ${FEATURE_NAMES[f].toLowerCase()} is shown in this picture?`, a: a.map((o) => DESCRIPTIONS[o]), right: a.indexOf(option), picture: { feature: f, option } };
     });
     const card = newCard(TUT_FEATURES, { wide: true });
-    card.append(lead("Please answer the following questions about the features."));
+    card.append(lead("Two short questions about the options you just saw."));
     const { groups, pick, ready } = questionsCard(card, items);
     const row = el("div", { class: "row-grid two" }, ...groups); card.append(row);
     const ms = await nextButton(card, { ready });
@@ -730,8 +741,8 @@ if (VIZ) {
 if (FULL) {
   await welcome();
   await instructions();
-  await check();
   await practice();
+  await check();
   await features();
   if (CONFIG.optionCheck) await optionCheck();
 }
