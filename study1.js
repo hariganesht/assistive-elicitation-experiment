@@ -339,10 +339,8 @@ async function practice() {
   t.center.append(lead("Please carefully read the given description of a kitchen, and try to picture what it might look like."), exampleTable(KITCHEN));
   const s1 = rangeSlider({ question: "How much do you think you would like this kitchen?", hint: HINT });
   t.center.append(s1.node);
-  t.say("This is a practice screen. The kitchen is not part of the study.",
-    "The slider runs from −50 (strongly dislike) to +50 (strongly like). Press on the line and drag to mark a range; you can then drag either end to adjust it.",
-    "A wide range means you are unsure. A narrow range, or both ends on one point, means you are sure.",
-    "Hit <b>Continue</b> when you are done.");
+  t.say("Practice: this kitchen is not part of the study.",
+    "Drag on the line to mark a range: <b>wide</b> if you are unsure, <b>narrow</b> if you are sure.");
   const ms1 = await nextButton(t.center, { ready: answered(s1) });
   const first = s1.value();
   // Step 2: the kitchen itself; the earlier answer is on the slider.
@@ -352,9 +350,7 @@ async function practice() {
   const s2 = rangeSlider({ question: "How much do you actually like this kitchen?", hint: HINT });
   s2.prev(first);
   t.center.append(s2.node);
-  t.say("When you rate something again, your earlier answer is shown as a green band above the line.",
-    "You can keep it or set a new range.",
-    "Hit <b>Continue</b> when you are done.");
+  t.say("Your earlier answer is the green band above the line. Keep it or set a new range.");
   const ms2 = await nextButton(t.center, { ready: answered(s2), minMs: CONFIG.minRoomViewMs });
   data.practice = { first: { ...first, ms: ms1 }, second: { ...s2.value(), ms: ms2 } };
 }
