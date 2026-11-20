@@ -200,5 +200,7 @@ ol.points > li::before{content:counter(pt);position:absolute;left:0;top:-1px;wid
 .tut-side{padding-top:4px}
 .tut-side p{margin-bottom:16px;line-height:1.55}
 .tut-center .room-label{margin-top:4px}
+.tut-title .tut-section{white-space:nowrap}
+.tut-center .choices .room-view{max-width:480px}
 @media(max-width:1000px){.tut{grid-template-columns:1fr;gap:16px}.tut-side{order:-1}}
 .tip{}

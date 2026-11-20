@@ -327,7 +327,7 @@ function tutCard(step) {
   // tutorial's own advice is written into the example in colour).
   const card = newCard(null, { wide: true });
   const center = el("div", { class: "tut-center" });
-  card.append(el("div", { class: "tut" }, el("div", { class: "tut-title", text: `Tutorial: ${step}` }), center));
+  card.append(el("div", { class: "tut" }, el("div", { class: "tut-title" }, el("div", { text: "Tutorial:" }), el("div", { class: "tut-section", text: step })), center));
   return { center, col: center };
 }
 // Adds tutorial advice, in colour, after the slider's subtitle.
@@ -431,9 +431,9 @@ async function optionCheck() {
       return { f, option, choices: a, q: `Which option for the ${FEATURE_NAMES[f].toLowerCase()} is shown in this picture?`, a: a.map((o) => DESCRIPTIONS[o]), right: a.indexOf(option), picture: { feature: f, option } };
     });
     const card = tutCard("Room features").center;
-    card.append(lead("Two short questions about the options you just saw."));
+    card.append(lead("Answer two questions about the options you just saw."));
     const { groups, pick, ready } = questionsCard(card, items);
-    const row = el("div", { class: "row-grid two" }, ...groups); card.append(row);
+    card.append(...groups);
     const ms = await nextButton(card, { ready });
     const wrong = [];
     items.forEach((it, i) => {
