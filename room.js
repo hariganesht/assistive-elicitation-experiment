@@ -240,34 +240,48 @@ export class Room {
   // A complete room: one option for each of the four features.
   set(c) { this.whole(); this.setF(c.furniture); this.setW(c.wall); this.setD(c.decor); this.setL(c.lighting); this.render(); }
 
-  // A kitchen for the tutorial's worked example (20 Nov): glossy red cabinets, a white marble island with bar
-  // stools, a black-and-white checkerboard floor and deep blue tiles behind the counter. None of these features
-  // is part of the study's living rooms; the walls and light are plain and are not described.
+  // A kitchen for the tutorial's worked example (20 Nov): red cabinets, a white marble island with bar stools,
+  // light oak floorboards and a copper range hood. None of these is part of the study's living rooms; the walls,
+  // sink and light are plain and are not described.
   kitchen() {
     this.whole(); this.clear(this.furn); this.clear(this.dec); this.clear(this.lit); this.clear(this.fx);
     this.props.visible = false; this.win.visible = true;
-    this.wall.color.setHex(0xe4e0d8); this.floorMat.color.setHex(0x2a2a2a); this.ceilMat.color.setHex(0xf2efe9);
-    const red = new THREE.MeshStandardMaterial({ color: 0xb3282a, roughness: 0.25, metalness: 0.1 });
-    const top = new THREE.MeshStandardMaterial({ color: 0x2c2c2e, roughness: 0.4 });
-    const steel = new THREE.MeshStandardMaterial({ color: 0xb9bcc0, roughness: 0.3, metalness: 0.7 });
-    const marble = new THREE.MeshStandardMaterial({ color: 0xf1f0ec, roughness: 0.2 });
-    const vein = new THREE.MeshStandardMaterial({ color: 0xa9abb0, roughness: 0.3 });
-    // Checkerboard floor.
-    const black = new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.5 }), white = new THREE.MeshStandardMaterial({ color: 0xefede8, roughness: 0.5 });
-    for (let i = 0; i < 14; i++) for (let j = 0; j < 10; j++) this.fx.add(this.box(0.92, 0.02, 0.92, (i + j) % 2 ? black : white, -5.98 + i * 0.92, 0.08, -4.37 + j * 0.92));
-    // Base and wall cabinets along the back wall (right of the window), with a steel oven and handles.
-    this.furn.add(this.box(7.2, 1.0, 0.9, red, 2.7, 0.57, -4.35), this.box(7.3, 0.08, 1.0, top, 2.7, 1.11, -4.32));
-    this.furn.add(this.box(7.2, 1.1, 0.6, red, 2.7, 3.75, -4.5), this.box(1.2, 0.8, 0.04, steel, 1.0, 0.6, -3.88));
-    for (const x of [-0.3, 2.2, 3.4, 4.6, 5.8]) this.furn.add(this.box(0.4, 0.04, 0.05, steel, x, 0.95, -3.88), this.box(0.4, 0.04, 0.05, steel, x, 3.3, -4.18));
-    // Deep blue tiles between the counter and the wall cabinets.
-    const blue = [0x1f4f8f, 0x24599f, 0x1b4580].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.3 }));
-    for (let r = 0; r < 6; r++) for (let k = 0; k < 24; k++) this.dec.add(this.box(0.28, 0.32, 0.03, blue[(r + k) % 3], -0.75 + k * 0.3, 1.33 + r * 0.34, -4.79));
+    this.wall.color.setHex(0xf0e9de); this.floorMat.color.setHex(0xc9a578); this.ceilMat.color.setHex(0xf6f3ee);
+    const M = (color, roughness = 0.6, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness });
+    const red = M(0xa8322d, 0.5), gap = M(0x6e1f1c, 0.7), top = M(0xf3f1ec, 0.25), steel = M(0xc4c7ca, 0.3, 0.7);
+    const copper = M(0xc07a45, 0.35, 0.55), oak = [0xd2ae80, 0xc9a171, 0xdbb98d].map((c) => M(c, 0.7));
+    const marble = M(0xf4f3ef, 0.15), vein = M(0xb4b6ba, 0.3), white = M(0xf7f5f0, 0.5), black = M(0x2b2b2d, 0.5);
+    // Light oak floorboards, running towards the viewer.
+    for (let i = 0; i < 28; i++) this.fx.add(this.box(0.45, 0.02, 9, oak[(i * 7) % 3], -6.3 + i * 0.465, 0.08, -0.4));
+    // Red base cabinets along the whole back wall, with a pale worktop, door gaps and steel handles.
+    this.furn.add(this.box(12.8, 1.0, 0.9, red, 0, 0.6, -4.38), this.box(12.9, 0.1, 1.0, top, 0, 1.15, -4.35), this.box(12.8, 0.1, 0.8, gap, 0, 0.12, -4.36));
+    for (let x = -5.6; x <= 5.7; x += 1.6) { this.furn.add(this.box(0.03, 0.9, 0.02, gap, x + 0.8, 0.62, -3.92), this.box(0.04, 0.32, 0.05, steel, x + 0.6, 0.85, -3.9)); }
+    // Red wall cabinets either side of the hood (right of the window).
+    for (const [x, w] of [[-0.35, 3.1], [4.85, 3.1]]) {
+      this.furn.add(this.box(w, 1.15, 0.6, red, x, 3.8, -4.55));
+      this.furn.add(this.box(0.03, 1.05, 0.02, gap, x, 3.8, -4.24), this.box(0.04, 0.3, 0.05, steel, x - 0.2, 3.45, -4.22), this.box(0.04, 0.3, 0.05, steel, x + 0.2, 3.45, -4.22));
+    }
+    // A copper hood above the stove, between the wall cabinets.
+    const hood = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 1.05, 0.95, 4, 1), copper); hood.rotation.y = Math.PI / 4; hood.scale.set(1, 1, 0.55); hood.position.set(2.25, 3.55, -4.45);
+    this.furn.add(hood, this.box(0.62, 1.85, 0.5, copper, 2.25, 4.95, -4.6), this.box(1.6, 0.05, 0.85, black, 2.25, 1.22, -4.35));
+    for (const [x, z] of [[1.85, -4.55], [2.65, -4.55], [1.85, -4.15], [2.65, -4.15]]) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.02, 6, 24), steel); r.rotation.x = Math.PI / 2; r.position.set(x, 1.26, z); this.furn.add(r); }
+    // A sink under the window, with a few herbs on the sill.
+    this.furn.add(this.box(1.5, 0.04, 0.6, steel, -3.85, 1.21, -4.35), this.cyl(0.04, 0.6, steel, -3.85, 1.5, -4.7), this.box(0.06, 0.06, 0.4, steel, -3.85, 1.78, -4.52));
+    for (const x of [-4.6, -3.1]) { this.dec.add(this.cyl(0.16, 0.26, M(0xb9653f, 0.9), x, 1.35, -4.72)); const l = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 10), M(0x5f8a4e, 1)); l.position.set(x, 1.62, -4.7); this.dec.add(l); }
     // A white marble island with three bar stools.
-    this.furn.add(this.box(3.6, 1.0, 1.4, white, 0, 0.57, -0.6), this.box(3.8, 0.12, 1.6, marble, 0, 1.13, -0.6));
-    for (const [x, z, w] of [[-1.1, -0.9, 1.4], [0.4, -0.35, 1.1], [1.2, -0.75, 0.9]]) { const v = this.box(w, 0.005, 0.03, vein, x, 1.195, z); v.rotation.y = 0.35; this.furn.add(v); }
-    for (const x of [-1.2, 0, 1.2]) this.furn.add(this.cyl(0.32, 0.08, top, x, 1.05, 0.55), this.cyl(0.05, 1.0, steel, x, 0.55, 0.55), this.cyl(0.25, 0.03, steel, x, 0.1, 0.55));
-    // Plain, even light.
-    if (!this.kfill) { this.kfill = new THREE.Group(); const d = new THREE.DirectionalLight(0xffffff, 1.4); d.position.set(2, 6, 12); this.kfill.add(new THREE.AmbientLight(0xfff6ea, 1.4), d); }
+    this.furn.add(this.box(3.6, 1.05, 1.4, white, 0, 0.6, -0.7), this.box(3.85, 0.12, 1.65, marble, 0, 1.18, -0.7));
+    for (const [x, z, w, r] of [[-1.0, -1.0, 1.6, 0.35], [0.5, -0.45, 1.2, -0.25], [1.3, -0.85, 0.9, 0.5]]) { const v = this.box(w, 0.005, 0.025, vein, x, 1.245, z); v.rotation.y = r; this.furn.add(v); }
+    for (const x of [-1.2, 0, 1.2]) {
+      this.furn.add(this.cyl(0.3, 0.08, oak[1], x, 1.0, 0.5), this.cyl(0.035, 0.9, black, x, 0.53, 0.5), this.cyl(0.24, 0.03, black, x, 0.1, 0.5));
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.02, 6, 24), black); ring.rotation.x = Math.PI / 2; ring.position.set(x, 0.42, 0.5); this.furn.add(ring);
+    }
+    // Soft, warm daylight.
+    if (!this.kfill) {
+      this.kfill = new THREE.Group();
+      const sun = new THREE.DirectionalLight(0xfff1dc, 1.2); sun.position.set(-4, 6, 10);
+      const ceil = new THREE.PointLight(0xffe6c4, 14, 14, 1.2); ceil.position.set(0, 5.2, -1);
+      this.kfill.add(new THREE.AmbientLight(0xfff3e4, 1.15), sun, ceil);
+    }
     this.lit.add(this.kfill);
     this.render();
   }

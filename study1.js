@@ -31,7 +31,7 @@
 //                         (starts at the first block; add &full=1 to include the introduction)
 //   ?seed=123             fixes the randomisation
 //   ?PROLIFIC_PID=... or ?pid=...   the participant's ID (otherwise a random one is made)
-import { FEATURES, LEVELS, DESCRIPTIONS, FEATURE_NAMES, ROOM_SETTINGS, roomPicture } from "./room.js?v=4";
+import { FEATURES, LEVELS, DESCRIPTIONS, FEATURE_NAMES, ROOM_SETTINGS, roomPicture } from "./room.js?v=5";
 
 // ---------------------------------------------------------------- settings
 const CONFIG = {
@@ -317,8 +317,8 @@ function points(items) {
 
 // Tutorial: Using the Slider (20 Nov, Zhi-Xuan): practice with the interface on a kitchen, whose four features
 // lie outside the study's rooms, before the quiz.
-const KITCHEN = [["Cabinets", "glossy red cabinets"], ["Island", "a white marble island with three bar stools"],
-  ["Floor", "black-and-white checkerboard tiles"], ["Backsplash", "deep blue tiles behind the counter"]];
+const KITCHEN = [["Cabinets", "red cabinets"], ["Island", "a white marble island with three bar stools"],
+  ["Floor", "light oak floorboards"], ["Range hood", "a copper hood above the stove"]];
 const exampleTable = (rows) => el("table", { class: "description" }, ...rows.map(([k, v]) => el("tr", {}, el("th", { text: k }), el("td", { text: v }))));
 // Tutorial pages (20 Nov), laid out like the Block Words tutorial: "Tutorial" on the left, the example in the
 // middle with the Next button under it, and the explanation on the right in short paragraphs.

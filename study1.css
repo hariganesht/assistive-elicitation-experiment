@@ -1,5 +1,5 @@
 /* Study 1 page. Plain experiment-page look (2 Nov): white page, system font, standard buttons. */
-:root{--ink:#222;--btn:#111;--caps:13px;--muted:#5f6368;--line:#d0d3d6;--paper:#fff;--accent:#2f6db5;--accent-dark:#245a96;--ref:#d38a1e}
+:root{--ink:#222;--btn:#2e7d4f;--caps:13px;--muted:#5f6368;--line:#d0d3d6;--paper:#fff;--accent:#2f6db5;--accent-dark:#245a96;--ref:#d38a1e}
 *{box-sizing:border-box}
 html,body{margin:0;background:#fff;color:var(--ink)}
 body{font-family:Arial,Helvetica,sans-serif;font-size:17px;line-height:1.5}
@@ -20,7 +20,7 @@ p{margin-bottom:12px}
 .card .error{font-size:14px;color:#b3261e;min-height:1.3em;text-align:right}
 
 .button{display:inline-block;min-width:140px;padding:10px 22px;border:none;border-radius:4px;background:var(--btn);color:#fff;font:inherit;font-size:14px;font-weight:bold;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;text-align:center;text-decoration:none}
-.button:hover{background:#333}
+.button:hover{background:#246340}
 .button:disabled{background:#9a9a9a;cursor:not-allowed}
 
 /* Pictures are drawn at 16:9; this crop trims the empty strips above the ceiling and below the floor (17 Nov). */
@@ -198,4 +198,4 @@ ol.points > li::before{content:counter(pt);position:absolute;left:0;top:-1px;wid
 .tut-side p{margin-bottom:16px;line-height:1.55}
 .tut-center .room-label{margin-top:4px}
 @media(max-width:1000px){.tut{grid-template-columns:1fr;gap:16px}.tut-side{order:-1}}
-.tip{color:var(--accent);font-weight:bold}
+.tip{}
