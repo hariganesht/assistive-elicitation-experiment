@@ -240,6 +240,41 @@ export class Room {
   // A complete room: one option for each of the four features.
   set(c) { this.whole(); this.setF(c.furniture); this.setW(c.wall); this.setD(c.decor); this.setL(c.lighting); this.render(); }
 
+  // A café for the tutorial's worked example (20 Nov): deep green walls, wooden benches and tables by the
+  // window, strings of warm fairy lights and a chalkboard menu. None of these is an option in the study.
+  cafe() {
+    this.whole(); this.clear(this.furn); this.clear(this.dec); this.clear(this.lit); this.clear(this.fx);
+    this.props.visible = false; this.win.visible = true;
+    this.wall.color.setHex(0x2f5545); this.floorMat.color.setHex(0x9a7651); this.ceilMat.color.setHex(0xe9e4da);
+    const oak = new THREE.MeshStandardMaterial({ color: 0x9c6b3f, roughness: 0.7 });
+    // Benches and small tables along the window and the right-hand side.
+    for (const [x, z] of [[-3.85, -3.6], [-3.85, -1.2], [2.6, -3.6], [2.6, -1.2]]) {
+      this.furn.add(this.box(2.6, 0.12, 0.7, oak, x, 0.62, z), this.box(0.12, 0.56, 0.6, oak, x - 1.15, 0.32, z), this.box(0.12, 0.56, 0.6, oak, x + 1.15, 0.32, z));
+      this.furn.add(this.box(2.2, 0.08, 1.0, oak, x, 1.02, z + 0.95), this.box(0.1, 0.95, 0.1, oak, x, 0.52, z + 0.95));
+      this.furn.add(this.box(2.6, 0.12, 0.7, oak, x, 0.62, z + 1.9), this.box(0.12, 0.56, 0.6, oak, x - 1.15, 0.32, z + 1.9), this.box(0.12, 0.56, 0.6, oak, x + 1.15, 0.32, z + 1.9));
+      this.furn.add(this.cyl(0.11, 0.18, this.white, x - 0.45, 1.15, z + 0.9), this.cyl(0.11, 0.18, this.white, x + 0.5, 1.15, z + 1.0));
+    }
+    // A chalkboard menu on the back wall, with chalk lines for the writing.
+    const board = new THREE.MeshStandardMaterial({ color: 0x1e2422, roughness: 1 });
+    const chalk = new THREE.MeshStandardMaterial({ color: 0xe8e6dc, roughness: 1 });
+    this.dec.add(this.box(3.4, 2.3, 0.08, oak, 1.6, 3.35, -4.72), this.box(3.1, 2.0, 0.09, board, 1.6, 3.35, -4.68));
+    this.dec.add(this.box(1.4, 0.12, 0.02, chalk, 1.6, 4.05, -4.62));
+    for (let i = 0; i < 6; i++) { const y = 3.7 - i * 0.26; this.dec.add(this.box(1.5 - (i % 3) * 0.25, 0.05, 0.02, chalk, 1.15 - (i % 3) * 0.12, y, -4.62), this.box(0.3, 0.05, 0.02, chalk, 2.75, y, -4.62)); }
+    // Strings of fairy lights hanging in loose curves under the ceiling.
+    const bulb = new THREE.MeshStandardMaterial({ color: 0xfff2c9, emissive: 0xffc46b, emissiveIntensity: 2.2 });
+    const wire = new THREE.MeshStandardMaterial({ color: 0x2b2b2b });
+    for (const z of [-3.4, -1.6, 0.2, 2.0]) {
+      const pts = [];
+      for (let i = 0; i <= 40; i++) { const t = i / 40, x = -6.3 + 12.6 * t; pts.push(new THREE.Vector3(x, 5.6 - 0.55 * Math.sin(Math.PI * ((t * 3) % 1)), z)); }
+      this.lit.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, 0.012, 6, false), wire));
+      for (let i = 1; i < 40; i += 2) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), bulb); b.position.copy(pts[i]); b.position.y -= 0.06; this.lit.add(b); }
+    }
+    const add = (x, y, z, p) => { const l = new THREE.PointLight(0xffc98a, p, 11, 1.4); l.position.set(x, y, z); this.lit.add(l); };
+    for (const x of [-4, 0, 4]) for (const z of [-2.8, 0.6]) add(x, 5.0, z, 7);
+    this.lit.add(new THREE.AmbientLight(0xffe2c0, 0.35));
+    this.render();
+  }
+
   // One option on its own (29 Oct): in the same place as in a complete room, with everything else taken
   // away (no window, rug, table or other options), in the same empty grey room for every feature. Lighting
   // options light the room themselves; the others are shown in even light.
@@ -285,7 +320,7 @@ export function roomPicture(what) {
     painter = new Room(host, null, { preserve: true });
     painter.observer.disconnect();
   }
-  if (what.feature) painter.showOption(what.feature, what.option); else painter.set(what);
+  if (what.scene === "cafe") painter.cafe(); else if (what.feature) painter.showOption(what.feature, what.option); else painter.set(what);
   const url = painter.r.domElement.toDataURL("image/jpeg", 0.92);
   pictures.set(key, url);
   return url;

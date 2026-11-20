@@ -31,7 +31,7 @@
 //                         (starts at the first block; add &full=1 to include the introduction)
 //   ?seed=123             fixes the randomisation
 //   ?PROLIFIC_PID=... or ?pid=...   the participant's ID (otherwise a random one is made)
-import { FEATURES, LEVELS, DESCRIPTIONS, FEATURE_NAMES, ROOM_SETTINGS, roomPicture } from "./room.js?v=2";
+import { FEATURES, LEVELS, DESCRIPTIONS, FEATURE_NAMES, ROOM_SETTINGS, roomPicture } from "./room.js?v=3";
 
 // ---------------------------------------------------------------- settings
 const CONFIG = {
@@ -319,12 +319,12 @@ function points(items) {
 }
 
 // Tutorial: Using the Slider (20 Nov, Zhi-Xuan): a worked example before the quiz, with the same steps as
-// Task 1 but a bedroom, whose features lie outside the study's rooms. Step 1 rates it from a description; step 2
-// adds what it is like in person and shows the earlier answer; step 3 rates another bedroom with the first beside it.
-const BEDROOM = [["Bed", "a large wooden bed with white sheets"], ["Lighting", "a single bedside lamp"],
-  ["Walls", "painted pale blue"], ["Decor", "a tall mirror"]];
-const BEDROOM2 = [["Bed", "a large wooden bed with white sheets"], ["Lighting", "a ceiling fan with a light"],
-  ["Walls", "painted pale blue"], ["Decor", "a woven rug hung on the wall"]];
+// Task 1 but a café, whose features lie outside the study's rooms. Step 1 rates it from a description; step 2
+// shows the café (a rendered picture) with the earlier answer on the slider; step 3 rates another café beside it.
+const CAFE = [["Seating", "wooden benches by the window"], ["Lighting", "strings of warm fairy lights"],
+  ["Walls", "painted deep green"], ["Decor", "a large chalkboard menu"]];
+const CAFE2 = [["Seating", "wooden benches by the window"], ["Lighting", "paper lanterns"],
+  ["Walls", "painted deep green"], ["Decor", "shelves of coffee jars"]];
 const exampleTable = (rows) => el("table", { class: "description" }, ...rows.map(([k, v]) => el("tr", {}, el("th", { text: k }), el("td", { text: v }))));
 async function instructions() {
   const how = CONFIG.rangeWording === "90"
@@ -333,35 +333,38 @@ async function instructions() {
   await popup(TUT_SLIDER, [
     "Throughout this study, you will rate how much you like things on a scale from −50 (strongly dislike) through 0 (neutral) to +50 (strongly like).",
     `Instead of a single number, you give a range: ${how[0].toLowerCase()}${how.slice(1)} If you are unsure, make the range wide. If you are sure, make it narrow, or put both ends on the same point.`,
-    "Let's practise with an example: a bedroom, which is not one of the rooms in the study. The steps are the same as in the first task of the study."], "Start the example");
+    "Let's practise with an example: a café, which is not one of the rooms in the study. The steps are the same as in the first task of the study."], "Start the example");
 }
 
 async function practice() {
   const step = (k) => `${TUT_SLIDER} · Example, step ${k} of 3`;
   // Step 1: a description only.
   let card = newCard(step(1));
-  card.append(lead("Please carefully read the given description of a room, and try to picture what the room might look like."), exampleTable(BEDROOM));
-  const s1 = rangeSlider({ question: Q.read, hint: HINT });
+  card.append(lead("Please carefully read the given description of a café, and try to picture what it might look like."), exampleTable(CAFE));
+  const s1 = rangeSlider({ question: "How much do you think you would like this café?", hint: HINT });
   card.append(s1.node);
   const ms1 = await nextButton(card, { ready: answered(s1) });
   const first = s1.value();
-  // Step 2: more information, as when the room is shown; the earlier answer is on the slider.
+  // Step 2: the café itself; the earlier answer is on the slider.
   card = newCard(step(2));
-  card.append(lead("Now imagine you walk into this room. It is just as described, but it is quite small and the lamp is rather dim."), exampleTable(BEDROOM));
-  const s2 = rangeSlider({ question: Q.seen, hint: HINT });
+  card.append(lead("Please see the café shown below."));
+  picture(card, { scene: "cafe" });
+  const s2 = rangeSlider({ question: "How much do you actually like this café?", hint: HINT });
   s2.prev(first);
-  card.append(s2.node, el("p", { class: "small", text: "Your earlier answer is shown above the line. You may keep it or change it, depending on what you think now. In the study, you will see a picture of the room at this step." }));
-  const ms2 = await nextButton(card, { ready: answered(s2) });
+  card.append(s2.node, el("p", { class: "small", text: "Your earlier answer is shown above the line. You may keep it or change it, depending on what you think now." }));
+  const ms2 = await nextButton(card, { ready: answered(s2), minMs: CONFIG.minRoomViewMs });
   const second = s2.value();
-  // Step 3: another room, with the first one kept on screen.
+  // Step 3: another café from its description, with the first one kept on screen.
   card = newCard(step(3), { wide: true });
-  card.append(lead("Please read the description of the room given below on the right. It shares some features with the initial room, which is shown on the left."));
-  questionOnce(card, Q.read);
+  card.append(lead("Please read the description of the café given below on the right. It shares some features with the café you just saw, which is shown on the left."));
+  questionOnce(card, "How much do you think you would like this café?");
   const grid = el("div", { class: "row-grid two" }); card.append(grid);
-  grid.append(el("div", { class: "cell" }, el("div", { class: "room-label", text: "Initial room" }), exampleTable(BEDROOM),
-    el("p", { class: "small", text: `You rated this room ${rangeText(second)}.` })));
+  const left = el("div", { class: "cell kept" }, el("div", { class: "room-label", text: "Initial café" }));
+  picture(left, { scene: "cafe" });
+  left.append(el("p", { class: "small", text: `You rated this café ${rangeText(second)}.` }));
+  grid.append(left);
   const s3 = rangeSlider({ question: "", hint: "" });
-  roomCell(grid, "New room", exampleTable(BEDROOM2)).append(s3.node);
+  roomCell(grid, "New café", exampleTable(CAFE2)).append(s3.node);
   const ms3 = await nextButton(card, { ready: answered(s3) });
   data.practice = { first: { ...first, ms: ms1 }, second: { ...second, ms: ms2 }, other: { ...s3.value(), ms: ms3 } };
 }
