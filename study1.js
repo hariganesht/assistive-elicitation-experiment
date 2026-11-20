@@ -324,9 +324,12 @@ const exampleTable = (rows) => el("table", { class: "description" }, ...rows.map
 // middle with the Next button under it, and the explanation on the right in short paragraphs.
 function tutCard(step) {
   const card = newCard(null, { wide: true });
-  const center = el("div", { class: "tut-center" }), side = el("div", { class: "tut-side" });
-  card.append(el("div", { class: "tut" }, el("div", { class: "tut-title" }, el("div", { text: "Tutorial" }), el("div", { class: "tut-step", text: step })), center, side));
-  return { center, side, say: (...ps) => side.append(...ps.map((t) => el("p", { html: t }))) };
+  // The example sits in a framed box (the "screen"), with the Next button under it; the instructions sit in a
+  // tinted note to the right, so the two never read as one block of text.
+  const center = el("div", { class: "tut-frame" }), col = el("div", { class: "tut-center" }, center);
+  const notes = el("div", { class: "tut-notes" }), side = el("div", { class: "tut-side" }, el("div", { class: "tut-note-label", text: "How it works" }), notes);
+  card.append(el("div", { class: "tut" }, el("div", { class: "tut-title" }, el("div", { text: "Tutorial" }), el("div", { class: "tut-step", text: step })), col, side));
+  return { center, col, side, say: (...ps) => notes.append(...ps.map((t) => el("p", { html: t }))) };
 }
 
 async function instructions() {}   // the explanation is now on the example pages themselves (20 Nov)
@@ -339,10 +342,9 @@ async function practice() {
   t.center.append(lead("Please carefully read the given description of a kitchen, and try to picture what it might look like."), exampleTable(KITCHEN));
   const s1 = rangeSlider({ question: "How much do you think you would like this kitchen?", hint: HINT });
   t.center.append(s1.node);
-  t.say("Practice: this kitchen is not part of the study.",
-    "Click on the line and drag along it to mark a range.",
+  t.say("Click on the line and drag along it to mark a range.",
     "Make the range wider if you aren’t sure how much you would like the kitchen, and narrower if you are!");
-  const ms1 = await nextButton(t.center, { ready: answered(s1) });
+  const ms1 = await nextButton(t.col, { ready: answered(s1) });
   const first = s1.value();
   // Step 2: the kitchen itself; the earlier answer is on the slider.
   t = tutCard("Using the slider · 2 of 2");
@@ -352,7 +354,7 @@ async function practice() {
   s2.prev(first);
   t.center.append(s2.node);
   t.say("Your earlier answer is the green band above the line. Keep it or set a new range.");
-  const ms2 = await nextButton(t.center, { ready: answered(s2), minMs: CONFIG.minRoomViewMs });
+  const ms2 = await nextButton(t.col, { ready: answered(s2), minMs: CONFIG.minRoomViewMs });
   data.practice = { first: { ...first, ms: ms1 }, second: { ...s2.value(), ms: ms2 } };
 }
 
@@ -378,13 +380,13 @@ async function check() {
     const { groups, pick, ready } = questionsCard(t.center, qs);
     t.center.append(...groups);
     t.say("Well done!", "Before moving on, please answer two short questions about the slider, then hit <b>Continue</b>.");
-    await nextButton(t.center, { ready });
+    await nextButton(t.col, { ready });
     const ok = qs.every((item, i) => pick(i) === item.right);
     data.check.push({ attempt, answers: qs.map((_, i) => pick(i)), ok });
     if (ok) return;
     const again = tutCard("Using the slider · questions");
     again.say("Not quite.", "The lowest and highest ratings show how sure you are: the same point if you are certain, a wide range if you are unsure.", "Hit <b>Continue</b> to try the questions again.");
-    await nextButton(again.center, { label: "Continue" });
+    await nextButton(again.col, { label: "Continue" });
   }
 }
 

@@ -196,3 +196,7 @@ ol.points > li::before{content:counter(pt);position:absolute;left:0;top:-1px;wid
 .tut-center .room-label{margin-top:4px}
 @media(max-width:1000px){.tut{grid-template-columns:1fr;gap:16px}.tut-side{order:-1}}
 .tut-center .range .scale span:nth-child(2),.tut-center .range .scale span:nth-child(4){display:none}
+.tut-frame{border:1px solid #c9ccd0;border-radius:6px;padding:22px 26px 10px;background:#fff}
+.tut-side{background:#eef3f8;border-radius:8px;padding:16px 20px 4px;color:#1f3550}
+.tut-note-label{font-size:13px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#2f6db5;margin-bottom:10px}
+.tut-side p{margin-bottom:12px}
