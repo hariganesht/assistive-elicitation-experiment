@@ -59,8 +59,8 @@ textarea.comments{width:100%;min-height:110px;border:1px solid #999;padding:8px;
 .range.untouched input[type=range],.range.untouched .fill{visibility:hidden}
 .range .scale{position:relative;height:38px;font-size:12.5px;font-weight:bold;letter-spacing:.05em;text-transform:uppercase;line-height:1.35;color:var(--ink);margin-top:4px}
 .range .scale span{position:absolute;top:0;transform:translateX(-50%);text-align:center;white-space:nowrap}
-.range .scale span.first{transform:none;text-align:left}
-.range .scale span.last{transform:translateX(-100%);text-align:right}
+.range .track,.range .scale{margin-left:66px;margin-right:66px}
+/* every label is centred on its number; the line is inset so the end labels fit */
 .range .scale b{color:var(--ink);font-weight:normal}
 .range .readout{margin-top:18px;min-height:1.4em;text-align:center}
 .range.untouched .readout{color:var(--muted)}
@@ -97,6 +97,8 @@ textarea.comments{width:100%;min-height:110px;border:1px solid #999;padding:8px;
   .two-col > .kept{padding-right:0;border-right:none;padding-bottom:14px;border-bottom:1px solid var(--line)}
   .reminder-row{grid-template-columns:repeat(2,minmax(0,1fr))}.reminder-name{grid-column:1/-1;padding-top:6px}
   .range .scale span:nth-child(2),.range .scale span:nth-child(4){display:none}
+  .range .scale{height:56px}.range .scale span.first,.range .scale span.last{white-space:normal;width:90px}
+  .range .track,.range .scale{margin-left:45px;margin-right:45px}
 }
 /* Narrow sliders (several rooms side by side): ends and neutral only, so labels don't collide. */
 .row-grid .range .scale span:nth-child(2),.row-grid .range .scale span:nth-child(4){display:none}
@@ -157,6 +159,7 @@ h1,h2,.room-label{text-wrap:balance}
 /* Narrower sliders in the two columns: the end labels go on two lines so they don't run into the next one. */
 .two-col .range .scale,.row-grid .range .scale{height:56px}
 .two-col .range .scale span.first,.two-col .range .scale span.last,.row-grid .range .scale span.first,.row-grid .range .scale span.last{white-space:normal;width:90px}
+.two-col .range .track,.two-col .range .scale,.row-grid .range .track,.row-grid .range .scale{margin-left:45px;margin-right:45px}
 /* Side-by-side rooms (17 Nov): every description uses the same label width, and the sliders line up along the
    bottom even when one description runs onto two lines. */
 table.description th{width:122px}
