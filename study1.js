@@ -298,8 +298,7 @@ const nextEvent = () => ++eventIndex;
 async function welcome() {
   const card = newCard(); card.classList.add("welcome");   // centred on the page (20 Nov)
   // 20 Nov (Zhi-Xuan): a more informative title and a short motivation; consent is handled on Prolific.
-  card.append(el("div", { class: "page-title", text: "Learning What Rooms You Like" }),
-    lead("Welcome to our study on how people learn their own preferences!"),
+  card.append(lead("Welcome to our study on how people learn their own preferences!"),
     lead("In this study, we will show you descriptions and images of various rooms, and ask you to judge how much you like these rooms as more information about each room is provided. Remember: there are no right or wrong answers, we want your opinions."),
     lead("The task should take about 15 minutes to complete. Before you begin, you will be asked to complete a short tutorial. Press next to continue!"));
   await nextButton(card, { label: "Next" });
