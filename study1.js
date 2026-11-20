@@ -318,7 +318,7 @@ function points(items) {
 // Tutorial: Using the Slider (20 Nov, Zhi-Xuan): practice with the interface on a kitchen, whose four features
 // lie outside the study's rooms, before the quiz.
 const KITCHEN = [["Cabinets", "red cabinets"], ["Island", "a white marble island with three bar stools"],
-  ["Floor", "light oak floorboards"], ["Range hood", "a copper hood above the stove"]];
+  ["Floor", "pale wooden floorboards"], ["Range hood", "a copper hood above the stove"]];
 const exampleTable = (rows) => el("table", { class: "description" }, ...rows.map(([k, v]) => el("tr", {}, el("th", { text: k }), el("td", { text: v }))));
 // Tutorial pages (20 Nov), laid out like the Block Words tutorial: "Tutorial" on the left, the example in the
 // middle with the Next button under it, and the explanation on the right in short paragraphs.
@@ -327,7 +327,7 @@ function tutCard(step) {
   // tutorial's own advice is written into the example in colour).
   const card = newCard(null, { wide: true });
   const center = el("div", { class: "tut-center" });
-  card.append(el("div", { class: "tut" }, el("div", { class: "tut-title" }, el("div", { text: "Tutorial" }), el("div", { class: "tut-step", text: step })), center));
+  card.append(el("div", { class: "tut" }, el("div", { class: "tut-title" }, el("div", { text: "Tutorial" })), center));
   return { center, col: center };
 }
 // Adds tutorial advice, in colour, after the slider's subtitle.
@@ -341,8 +341,8 @@ async function practice() {
   // Step 1: a description only.
   let t = tutCard("Using the slider · 1 of 2");
   t.center.append(lead("Read the given description of a kitchen, and try to picture what it might look like."), exampleTable(KITCHEN));
-  const s1 = rangeSlider({ question: "How much do you think you would like this kitchen?", hint: HINT });
-  tip(s1, "Set a wider range if you aren’t sure, and narrower if you are!");
+  const s1 = rangeSlider({ question: "How much do you think you would like this kitchen?",
+    hint: "Give the lowest and highest rating you think you could end up giving it. Your range should be narrower if you’re sure about your response, and wider if you aren’t." });
   t.center.append(s1.node);
   const ms1 = await nextButton(t.col, { ready: answered(s1) });
   const first = s1.value();
@@ -400,13 +400,14 @@ function optionGrid(parent, f, order) {
   }
 }
 async function features() {
-  await popup(TUT_FEATURES, [
-    "Each room in this study has four features: the furniture, the lighting, the walls and the wall decor. Each feature has four options.",
-    "On the next screens, you will see the four options for each feature, each shown on its own in an empty room, where it would be placed.",
-    "Please look at them carefully. Afterwards, you will be asked two short questions about them."], "Continue");
+  const intro = tutCard("Room features");
+  intro.center.append(lead("Each room in this study has four features: the furniture, the lighting, the walls and the wall decor. Each feature has four options."),
+    lead("On the next screens, you will see the four options for each feature, each shown on its own in an empty room, where it would be placed."),
+    lead("Please look at them carefully. Afterwards, you will be asked two short questions about them."));
+  await nextButton(intro.col);
   for (const [i, f] of shuffle(FEATURES).entries()) {
     setProgress(0.03 + 0.1 * (i / 4));
-    const card = newCard(TUT_FEATURES, { wide: true });
+    const card = tutCard("Room features").center;
     card.append(lead(`Here are the four options for the ${FEATURE_NAMES[f].toLowerCase()}. The words under each picture are how this option will be described in the study.`));
     const order = shuffle(LEVELS[f]);
     optionGrid(card, f, order);
@@ -430,7 +431,7 @@ async function optionCheck() {
       const a = shuffle(LEVELS[f]);
       return { f, option, choices: a, q: `Which option for the ${FEATURE_NAMES[f].toLowerCase()} is shown in this picture?`, a: a.map((o) => DESCRIPTIONS[o]), right: a.indexOf(option), picture: { feature: f, option } };
     });
-    const card = newCard(TUT_FEATURES, { wide: true });
+    const card = tutCard("Room features").center;
     card.append(lead("Two short questions about the options you just saw."));
     const { groups, pick, ready } = questionsCard(card, items);
     const row = el("div", { class: "row-grid two" }, ...groups); card.append(row);
@@ -443,7 +444,7 @@ async function optionCheck() {
     });
     backup();
     if (!wrong.length) return;
-    const again = newCard(TUT_FEATURES, { wide: true });
+    const again = tutCard("Room features").center;
     again.append(lead(`Not quite. ${wrong.map((it) => `The ${FEATURE_NAMES[it.f].toLowerCase()} picture showed ${DESCRIPTIONS[it.option]}.`).join(" ")} Please look at the options again below; you will then be asked two new questions.`));
     for (const it of wrong) { again.append(el("div", { class: "room-label", text: FEATURE_NAMES[it.f] })); optionGrid(again, it.f, LEVELS[it.f]); }
     await nextButton(again, { label: "Try again", minMs: CONFIG.minRoomViewMs });

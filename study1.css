@@ -2,11 +2,11 @@
 :root{--ink:#222;--btn:#2e7d4f;--caps:13px;--muted:#5f6368;--line:#d0d3d6;--paper:#fff;--accent:#2f6db5;--accent-dark:#245a96;--ref:#d38a1e}
 *{box-sizing:border-box}
 html,body{margin:0;background:#fff;color:var(--ink)}
-body{font-family:Arial,Helvetica,sans-serif;font-size:17px;line-height:1.5}
+body{font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5}
 main{width:min(1180px,100%);min-height:100vh;margin:0 auto;padding:44px 20px 40px}
 h1,h2,p{margin-top:0}
-h1{font-size:28px;margin-bottom:16px}
-h2{font-size:22px;margin-bottom:12px}
+h1{font-size:27px;margin-bottom:16px}
+h2{font-size:21px;margin-bottom:12px}
 p{margin-bottom:12px}
 .small{color:var(--muted)}
 
@@ -15,11 +15,11 @@ p{margin-bottom:12px}
 .screen{display:flex;justify-content:center}
 .card{width:min(800px,100%)}
 .card.wide{width:100%}
-.card .where{font-size:13px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#000;margin-bottom:26px}
+.card .where{font-size:12px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#000;margin-bottom:26px}
 .card .actions{display:flex;justify-content:flex-end;margin-top:30px}
-.card .error{font-size:14px;color:#b3261e;min-height:1.3em;text-align:right}
+.card .error{font-size:13px;color:#b3261e;min-height:1.3em;text-align:right}
 
-.button{display:inline-block;min-width:140px;padding:10px 22px;border:none;border-radius:4px;background:var(--btn);color:#fff;font:inherit;font-size:14px;font-weight:bold;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;text-align:center;text-decoration:none}
+.button{display:inline-block;min-width:140px;padding:10px 22px;border:none;border-radius:4px;background:var(--btn);color:#fff;font:inherit;font-size:13px;font-weight:bold;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;text-align:center;text-decoration:none}
 .button:hover{background:#246340}
 .button:disabled{background:#9a9a9a;cursor:not-allowed}
 
@@ -28,10 +28,10 @@ p{margin-bottom:12px}
 .room-view img,.room-view canvas{width:100%!important;height:100%!important;display:block;object-fit:cover;object-position:50% 27%}
 
 table.description{border-collapse:collapse;margin:4px 0 14px}
-table.description th{text-align:left;font-weight:bold;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:5px 18px 2px 0;vertical-align:top;white-space:nowrap}
+table.description th{text-align:left;font-weight:bold;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#000;padding:5px 18px 2px 0;vertical-align:top;white-space:nowrap}
 table.description td{padding:2px 0}
 .option-name{margin-bottom:4px}
-.room-label{font-size:13px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#000;margin:2px 0 10px}
+.room-label{font-size:12px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#000;margin:2px 0 10px}
 
 textarea.comments{width:100%;min-height:110px;border:1px solid #999;padding:8px;font:inherit}
 .choices{margin-bottom:10px}
@@ -57,7 +57,7 @@ textarea.comments{width:100%;min-height:110px;border:1px solid #999;padding:8px;
 .range input[type=range]::-moz-range-thumb{pointer-events:auto;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid #111;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:grab}
 .range input[type=range]:active::-webkit-slider-thumb{cursor:grabbing;transform:scale(1.08)}
 .range.untouched input[type=range],.range.untouched .fill{visibility:hidden}
-.range .scale{position:relative;height:38px;font-size:12.5px;font-weight:bold;letter-spacing:.05em;text-transform:uppercase;line-height:1.35;color:var(--ink);margin-top:4px}
+.range .scale{position:relative;height:46px;font-size:inherit;font-weight:normal;line-height:1.4;color:var(--ink);margin-top:4px}
 .range .scale span{position:absolute;top:0;transform:translateX(-50%);text-align:center;white-space:nowrap}
 .range .track,.range .scale{margin-left:66px;margin-right:66px}
 /* every label is centred on its number; the line is inset so the end labels fit */
@@ -97,7 +97,7 @@ textarea.comments{width:100%;min-height:110px;border:1px solid #999;padding:8px;
   .two-col > .kept{padding-right:0;border-right:none;padding-bottom:14px;border-bottom:1px solid var(--line)}
   .reminder-row{grid-template-columns:repeat(2,minmax(0,1fr))}.reminder-name{grid-column:1/-1;padding-top:6px}
   .range .scale span:nth-child(2),.range .scale span:nth-child(4){display:none}
-  .range .scale{height:56px}.range .scale span.first,.range .scale span.last{white-space:normal;width:90px}
+  .range .scale{height:70px}.range .scale span.first,.range .scale span.last{white-space:normal;width:90px}
   .range .track,.range .scale{margin-left:45px;margin-right:45px}
 }
 /* Narrow sliders (several rooms side by side): ends and neutral only, so labels don't collide. */
@@ -112,31 +112,31 @@ body.viz .row-grid,body.viz .row-grid.three{grid-template-columns:repeat(2,minma
 body.viz .two-col{grid-template-columns:1fr}
 body.viz .two-col > .kept{padding-right:0;border-right:none}
 body.viz .range .scale span:nth-child(2),body.viz .range .scale span:nth-child(4){display:none}
-.viz-panel{position:sticky;top:0;max-height:100vh;overflow:auto;display:grid;gap:12px;padding:0 2px 24px;font-size:13px;line-height:1.45}
+.viz-panel{position:sticky;top:0;max-height:100vh;overflow:auto;display:grid;gap:12px;padding:0 2px 24px;font-size:12px;line-height:1.45}
 .viz-panel[hidden]{display:none}
 .vz-head{background:var(--paper);border:1px solid var(--line);padding:14px 16px;display:grid;gap:8px}
-.vz-slider select{font:inherit;font-size:13px;color:var(--ink);border:1px solid var(--line);padding:5px 6px;background:#fff}
+.vz-slider select{font:inherit;font-size:12px;color:var(--ink);border:1px solid var(--line);padding:5px 6px;background:#fff}
 .vz-params{display:grid;gap:6px;margin-top:4px}
-.vz-phead{font-size:14px;font-weight:bold;color:var(--ink);margin-top:4px}
-.vz-slider{display:grid;grid-template-columns:130px minmax(0,1fr) 40px;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+.vz-phead{font-size:13px;font-weight:bold;color:var(--ink);margin-top:4px}
+.vz-slider{display:grid;grid-template-columns:130px minmax(0,1fr) 40px;gap:8px;align-items:center;font-size:11px;color:var(--muted)}
 .vz-slider output{font-variant-numeric:tabular-nums;text-align:right;color:var(--ink)}
 .vz-fit{display:grid;gap:4px}
-.vz-fitrow{display:grid;grid-template-columns:130px 48px minmax(0,1fr);gap:8px;align-items:baseline;font-size:12px;color:var(--muted)}
+.vz-fitrow{display:grid;grid-template-columns:130px 48px minmax(0,1fr);gap:8px;align-items:baseline;font-size:11px;color:var(--muted)}
 .vz-fitrow b{font-weight:bold;color:var(--ink);font-variant-numeric:tabular-nums;text-align:right}
-.vz-fitrow i{font-style:normal;font-size:11px}
+.vz-fitrow i{font-style:normal;font-size:10px}
 .vz-chart{background:var(--paper);border:1px solid var(--line);padding:12px 14px 10px;min-width:0}
-.vz-chart h3{margin:0;font-size:15px}
-.vz-note{margin:2px 0 8px;color:var(--muted);font-size:12px}
+.vz-chart h3{margin:0;font-size:14px}
+.vz-note{margin:2px 0 8px;color:var(--muted);font-size:11px}
 .vz-chart svg{width:100%;height:auto;display:block;overflow:visible}
 .vz-ax{fill:var(--muted);font:10.5px Arial,Helvetica,sans-serif;font-variant-numeric:tabular-nums}
 .vz-lab{fill:var(--muted);font:11px Arial,Helvetica,sans-serif}
 .vz-nbgrid{display:grid;grid-template-columns:70px repeat(3,minmax(0,1fr));gap:6px;align-items:center}
-.vz-flab{font-size:11px;color:var(--muted)}
+.vz-flab{font-size:10px;color:var(--muted)}
 .vz-mini{border:1px solid var(--line);padding:4px 6px 3px;min-width:0}
 .vz-mini.wide{grid-column:2/-1}
 .vz-mini.on{border-color:var(--vz-belief);box-shadow:inset 0 0 0 1px var(--vz-belief)}
-.vz-mname{font-size:11px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.vz-num{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.vz-mname{font-size:10px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vz-num{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
 .vz-mini svg{width:100%;height:auto;display:block}
 .vz-tip{position:fixed;pointer-events:none;background:var(--ink);color:#fff;font:12px/1.4 Arial,Helvetica,sans-serif;padding:6px 8px;z-index:30;max-width:270px}
 @media(max-width:1000px){body.viz .layout{grid-template-columns:1fr}.viz-panel{position:static;max-height:none}}
@@ -144,7 +144,7 @@ body.viz .range .scale span:nth-child(2),body.viz .range .scale span:nth-child(4
 /* Pop-up introduction to each task (17 Nov). */
 .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
 .modal{background:#fff;width:min(700px,100%);padding:28px 30px 22px;border-radius:6px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
-.modal h2{font-size:15px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#000;margin-bottom:16px}
+.modal h2{font-size:14px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#000;margin-bottom:16px}
 .modal .actions{display:flex;justify-content:flex-end;margin-top:18px}
 .lead{margin-bottom:14px}
 .lead:last-of-type{margin-bottom:24px}
@@ -157,7 +157,7 @@ p,li,.subtitle,.question,.readout,.prev-text,.ref-text,td{text-wrap:pretty}
 h1,h2,.room-label{text-wrap:balance}
 .two-col > * > table.description{align-self:flex-start}
 /* Narrower sliders in the two columns: the end labels go on two lines so they don't run into the next one. */
-.two-col .range .scale,.row-grid .range .scale{height:56px}
+.two-col .range .scale,.row-grid .range .scale{height:70px}
 .two-col .range .scale span.first,.two-col .range .scale span.last,.row-grid .range .scale span.first,.row-grid .range .scale span.last{white-space:normal;width:90px}
 .two-col .range .track,.two-col .range .scale,.row-grid .range .track,.row-grid .range .scale{margin-left:45px;margin-right:45px}
 /* Side-by-side rooms (17 Nov): every description uses the same label width, and the sliders line up along the
@@ -173,10 +173,10 @@ ol.steps li{margin-bottom:10px}
 .choices{margin-bottom:24px}
 .choices .question{margin-bottom:8px}
 /* Welcome title and numbered points (17 Nov). */
-.page-title{font-size:15px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#000;margin-bottom:22px}
+.page-title{font-size:14px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#000;margin-bottom:22px}
 ol.points{list-style:none;counter-reset:pt;margin:6px 0 16px;padding:0}
 ol.points > li{counter-increment:pt;position:relative;padding:0 0 0 40px;margin-bottom:16px}
-ol.points > li::before{content:counter(pt);position:absolute;left:0;top:-1px;width:26px;height:26px;border-radius:50%;background:#111;color:#fff;font-size:14px;font-weight:bold;display:flex;align-items:center;justify-content:center}
+ol.points > li::before{content:counter(pt);position:absolute;left:0;top:-1px;width:26px;height:26px;border-radius:50%;background:#111;color:#fff;font-size:13px;font-weight:bold;display:flex;align-items:center;justify-content:center}
 .point-main{font-weight:bold}
 .point-detail{color:var(--muted);margin-top:3px}
 .point-example{margin-top:6px;padding:4px 0 0}
@@ -185,15 +185,18 @@ ol.points > li::before{content:counter(pt);position:absolute;left:0;top:-1px;wid
 .modal{max-height:92vh;overflow:auto}
 .modal .modal-wide{width:min(720px,100%)}
 .point-example .range .scale span:nth-child(2),.point-example .range .scale span:nth-child(4),.point-example .readout{display:none}
-.point-example .range .scale{height:38px}
+.point-example .range .scale{height:46px}
+
+/* Every page sits a little lower, nearer the middle of the screen (20 Nov). */
+.card:not(.welcome){margin-top:max(0px,calc(14vh - 50px))}
 
 /* Welcome page, centred on the screen (20 Nov). */
 .card.welcome{width:min(680px,100%);margin-top:max(40px,calc(38vh - 220px));margin-right:120px}
 
 /* Tutorial pages laid out like the Block Words tutorial (20 Nov). */
 .tut{display:grid;grid-template-columns:150px minmax(0,780px);gap:44px;align-items:start;justify-content:center;margin-top:16px}
-.tut-title{font-size:26px;font-weight:bold;padding-top:4px}
-.tut-title .tut-step{font-size:13px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+.tut-title{font-size:25px;font-weight:bold;padding-top:4px}
+.tut-title .tut-step{font-size:12px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:6px}
 .tut-side{padding-top:4px}
 .tut-side p{margin-bottom:16px;line-height:1.55}
 .tut-center .room-label{margin-top:4px}
