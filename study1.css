@@ -194,8 +194,8 @@ ol.points > li::before{content:counter(pt);position:absolute;left:0;top:-1px;wid
 .card.welcome{width:min(680px,100%);margin-top:max(40px,calc(38vh - 220px));margin-right:120px}
 
 /* Tutorial pages laid out like the Block Words tutorial (20 Nov). */
-.tut{display:grid;grid-template-columns:150px minmax(0,780px);gap:44px;align-items:start;justify-content:center;margin-top:16px}
-.tut-title{font-size:25px;font-weight:bold;padding-top:4px}
+.tut{display:grid;grid-template-columns:190px minmax(0,780px);gap:44px;align-items:start;justify-content:center;margin-top:16px}
+.tut-title{font-size:23px;line-height:1.25;font-weight:bold;padding-top:4px}
 .tut-title .tut-step{font-size:12px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:6px}
 .tut-side{padding-top:4px}
 .tut-side p{margin-bottom:16px;line-height:1.55}

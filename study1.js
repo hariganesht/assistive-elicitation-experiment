@@ -305,7 +305,7 @@ async function welcome() {
 }
 
 // Tutorial (17 Nov): numbered instructions, numbered questions, and the same header on every tutorial screen.
-const TUT_SLIDER = "Tutorial: Using the Slider", TUT_FEATURES = "Tutorial: Room Features";
+const TUT_SLIDER = "Tutorial: Using the slider", TUT_FEATURES = "Tutorial: Room features";
 const lead = (text) => el("p", { class: "lead", text });
 const numbered = (items) => el("ol", { class: "steps" }, ...items.map((t) => el("li", { text: t })));
 
@@ -318,7 +318,7 @@ function points(items) {
 // Tutorial: Using the Slider (20 Nov, Zhi-Xuan): practice with the interface on a kitchen, whose four features
 // lie outside the study's rooms, before the quiz.
 const KITCHEN = [["Cabinets", "red cabinets"], ["Island", "a white marble island with three bar stools"],
-  ["Floor", "pale wooden floorboards"], ["Range hood", "a copper hood above the stove"]];
+  ["Floor", "wooden floorboards"], ["Range hood", "a copper hood above the stove"]];
 const exampleTable = (rows) => el("table", { class: "description" }, ...rows.map(([k, v]) => el("tr", {}, el("th", { text: k }), el("td", { text: v }))));
 // Tutorial pages (20 Nov), laid out like the Block Words tutorial: "Tutorial" on the left, the example in the
 // middle with the Next button under it, and the explanation on the right in short paragraphs.
@@ -327,7 +327,7 @@ function tutCard(step) {
   // tutorial's own advice is written into the example in colour).
   const card = newCard(null, { wide: true });
   const center = el("div", { class: "tut-center" });
-  card.append(el("div", { class: "tut" }, el("div", { class: "tut-title" }, el("div", { text: "Tutorial" })), center));
+  card.append(el("div", { class: "tut" }, el("div", { class: "tut-title", text: `Tutorial: ${step}` }), center));
   return { center, col: center };
 }
 // Adds tutorial advice, in colour, after the slider's subtitle.
@@ -339,7 +339,7 @@ async function instructions() {}   // the explanation is now on the example page
 // column says only how the slider works, without repeating the task's own wording.
 async function practice() {
   // Step 1: a description only.
-  let t = tutCard("Using the slider · 1 of 2");
+  let t = tutCard("Using the slider");
   t.center.append(lead("Read the given description of a kitchen, and try to picture what it might look like."), exampleTable(KITCHEN));
   const s1 = rangeSlider({ question: "How much do you think you would like this kitchen?",
     hint: "Give the lowest and highest rating you think you could end up giving it. Your range should be narrower if you’re sure about your response, and wider if you aren’t." });
@@ -347,12 +347,12 @@ async function practice() {
   const ms1 = await nextButton(t.col, { ready: answered(s1) });
   const first = s1.value();
   // Step 2: the kitchen itself; the earlier answer is on the slider.
-  t = tutCard("Using the slider · 2 of 2");
+  t = tutCard("Using the slider");
   t.center.append(lead("Please see the kitchen shown below."));
   picture(t.center, { scene: "kitchen" });
-  const s2 = rangeSlider({ question: "How much do you actually like this kitchen?", hint: HINT });
+  const s2 = rangeSlider({ question: "How much do you actually like this kitchen?",
+    hint: "Give the lowest and highest rating you think you could end up giving it. Your earlier answer is the green band above the line." });
   s2.prev(first);
-  tip(s2, "Your earlier answer is the green band above the line: keep it or set a new range.");
   t.center.append(s2.node);
   const ms2 = await nextButton(t.col, { ready: answered(s2), minMs: CONFIG.minRoomViewMs });
   data.practice = { first: { ...first, ms: ms1 }, second: { ...s2.value(), ms: ms2 } };
@@ -376,16 +376,16 @@ async function check() {
     { q: "You have no idea whether you would like a room. What do you do?", a: ["Put both handles on 0", "Give a wide range, for example −40 to +40", "Give a narrow range around 0"], right: 1 },
   ];
   for (let attempt = 1; ; attempt++) {
-    const t = tutCard("Using the slider · questions");
+    const t = tutCard("Using the slider");
     const { groups, pick, ready } = questionsCard(t.center, qs);
     t.center.append(...groups);
-    t.center.prepend(el("p", { class: "lead tip", text: "Well done! Before moving on, please answer two short questions about the slider." }));
+    t.center.prepend(el("p", { class: "lead tip", text: "Before moving to the next section of the tutorial, answer two questions about the slider." }));
     await nextButton(t.col, { ready });
     const ok = qs.every((item, i) => pick(i) === item.right);
     data.check.push({ attempt, answers: qs.map((_, i) => pick(i)), ok });
     if (ok) return;
-    const again = tutCard("Using the slider · questions");
-    again.center.append(el("p", { class: "lead tip", text: "Not quite. The lowest and highest ratings show how sure you are: the same point if you are certain, a wide range if you are unsure. Please try the questions again." }));
+    const again = tutCard("Using the slider");
+    again.center.append(el("p", { class: "lead tip", text: "Not quite. The lowest and highest ratings show how sure you are: the same point if you are certain, a wide range if you are unsure. You will be asked to answer the tutorial questions once again." }));
     await nextButton(again.col, { label: "Continue" });
   }
 }
@@ -401,14 +401,13 @@ function optionGrid(parent, f, order) {
 }
 async function features() {
   const intro = tutCard("Room features");
-  intro.center.append(lead("Each room in this study has four features: the furniture, the lighting, the walls and the wall decor. Each feature has four options."),
-    lead("On the next screens, you will see the four options for each feature, each shown on its own in an empty room, where it would be placed."),
-    lead("Please look at them carefully. Afterwards, you will be asked two short questions about them."));
+  intro.center.append(lead("Each room shown in this study has four features: the furniture, the lighting, the walls and the decor."),
+    lead("Each feature has four options. You will now be shown each of these options as they would look in an otherwise empty room. Afterwards, you will be asked two questions about them."));
   await nextButton(intro.col);
   for (const [i, f] of shuffle(FEATURES).entries()) {
     setProgress(0.03 + 0.1 * (i / 4));
     const card = tutCard("Room features").center;
-    card.append(lead(`Here are the four options for the ${FEATURE_NAMES[f].toLowerCase()}. The words under each picture are how this option will be described in the study.`));
+    card.append(lead(`The four options for the ${FEATURE_NAMES[f].toLowerCase()} are shown below. The words accompanying each picture will be used to describe options in the study.`));
     const order = shuffle(LEVELS[f]);
     optionGrid(card, f, order);
     const ms = await nextButton(card, { minMs: CONFIG.minFeatureViewMs });
