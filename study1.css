@@ -183,3 +183,6 @@ ol.points > li::before{content:counter(pt);position:absolute;left:0;top:-1px;wid
 .modal .modal-wide{width:min(720px,100%)}
 .point-example .range .scale span:nth-child(2),.point-example .range .scale span:nth-child(4),.point-example .readout{display:none}
 .point-example .range .scale{height:38px}
+
+/* Welcome page, centred on the screen (20 Nov). */
+.card.welcome{width:min(680px,100%);margin-top:max(40px,calc(50vh - 230px))}

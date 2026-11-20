@@ -296,7 +296,7 @@ const nextEvent = () => ++eventIndex;
 
 // ---------------------------------------------------------------- screens: introduction
 async function welcome() {
-  const card = newCard();
+  const card = newCard(); card.classList.add("welcome");   // centred on the page (20 Nov)
   // 20 Nov (Zhi-Xuan): a more informative title and a short motivation; consent is handled on Prolific.
   card.append(el("div", { class: "page-title", text: "Learning What Rooms You Like" }),
     lead("Welcome to our study on how people learn their own preferences!"),
