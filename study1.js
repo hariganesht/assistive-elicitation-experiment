@@ -12,7 +12,7 @@
 //                            see a room, rate it -> read 3 versions that change one feature, rate them
 //                            -> the room again, with each of the three options shown on its own; rate the
 //                               versions again (your rating of the room is marked on each scale); pick the best
-//        -> a short demographics survey -> save -> link back to Prolific
+//        -> a short demographics survey -> save -> thank you
 // 25 Nov (Zhi-Xuan, Duy): 4 feature tasks; options in a 2x2 grid in the tutorial; in task 1 the initial room keeps
 // its description and shows its rating as a band on a scale; the feature task's two screens share one layout, with
 // the initial room's rating on every scale; demographics at the end; living-room framing; a night-time window.
@@ -43,8 +43,7 @@ const CONFIG = {
   // fails, people are asked to download their answers.
   dataPipeId: "",
   saveUrl: "",
-  completionUrl: "",       // if set, a link back to the recruitment site is shown at the end
-  prolificCode: "",        // Prolific completion code; if set, the link back is https://app.prolific.com/submissions/complete?cc=CODE
+  completionUrl: "",       // not used for now (25 Nov: no link back at the end)
   minFeatureViewMs: 5000,  // each options screen must be looked at for at least this long
   minRoomViewMs: 3000,     // each screen with room pictures must be looked at for at least this long
   // Tasks per block. To be fixed after the pilot (22 Oct). At most 4 single, 4 comparison, 8 feature.
@@ -799,29 +798,8 @@ async function finish() {
     done.append(el("p", { class: "small", text: saved ? "(debug) Answers saved." : "(debug) Answers were not sent." }),
       el("a", { class: "button", href: URL.createObjectURL(file), download: `study1-${data.participant}.json`, text: "Download answers" }));
   }
-  const back = CONFIG.prolificCode ? `https://app.prolific.com/submissions/complete?cc=${CONFIG.prolificCode}` : CONFIG.completionUrl;
-  if (back) done.append(el("p", {}, el("a", { class: "button", href: back, text: "Return to Prolific" })));
-  favourites(done);
-}
-
-// The end screen (25 Nov, Duy): the options this person seems to like best, from their own ratings. For each feature,
-// the option whose rooms got the highest average rating (middle of the range); then a picture of that room.
-function favourites(card) {
-  const sum = {}, n = {};
-  for (const [code, r] of Object.entries(lastAnswer)) {
-    const mid = (r.low + r.high) / 2, opts = roomOptions(code);
-    for (const f of FEATURES) { const o = opts[f]; sum[o] = (sum[o] ?? 0) + mid; n[o] = (n[o] ?? 0) + 1; }
-  }
-  const best = {};
-  for (const f of FEATURES) {
-    const rated = LEVELS[f].filter((o) => n[o]);
-    if (!rated.length) return;
-    best[f] = rated.reduce((a, b) => (sum[b] / n[b] > sum[a] / n[a] ? b : a));
-  }
-  card.append(el("h2", { class: "fav-title", text: "Your room" }),
-    el("p", { text: "From your ratings, this is our best guess at the room you would like most:" }));
-  picture(card, best);
-  card.append(describe(best));
+  // 25 Nov: no return link and no best-guess room on the end screen for now (Hari). The link back to Prolific
+  // (CONFIG.prolificCode / completionUrl) and the best-guess room are in commit 06305eb if wanted later.
 }
 
 // ---------------------------------------------------------------- run
