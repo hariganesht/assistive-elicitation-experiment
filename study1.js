@@ -8,11 +8,14 @@
 //                            (sharing 3, 2, 1 and 0 options with it), with the room seen kept on screen
 //             comparisons    see a room, rate it -> read 1 or 2 other rooms, rate them (the first room on screen)
 //                            -> see them all, including the first room again, rate them again
-//             feature tasks  (a reminder of all the options first)
+//             feature tasks  (a reminder of all the options first; 4 tasks, one per feature, 25 Nov)
 //                            see a room, rate it -> read 3 versions that change one feature, rate them
 //                            -> the room again, with each of the three options shown on its own; rate the
 //                               versions again (your rating of the room is marked on each scale); pick the best
-//        -> comments, save
+//        -> a short demographics survey -> save -> link back to Prolific
+// 25 Nov (Zhi-Xuan, Duy): 4 feature tasks; options in a 2x2 grid in the tutorial; in task 1 the initial room keeps
+// its description and shows its rating as a band on a scale; the feature task's two screens share one layout, with
+// the initial room's rating on every scale; demographics at the end; living-room framing; a night-time window.
 // 29 Oct meeting: keep the room already seen on screen, so people know where they are and what they said;
 // show each option on its own (in the same place, everything else taken away) so the change is easy to picture;
 // remind people of the options before the feature tasks; question above the scale, instructions below it;
@@ -31,7 +34,7 @@
 //                         (starts at the first block; add &full=1 to include the introduction)
 //   ?seed=123             fixes the randomisation
 //   ?PROLIFIC_PID=... or ?pid=...   the participant's ID (otherwise a random one is made)
-import { FEATURES, LEVELS, DESCRIPTIONS, FEATURE_NAMES, ROOM_SETTINGS, roomPicture } from "./room.js?v=5";
+import { FEATURES, LEVELS, DESCRIPTIONS, FEATURE_NAMES, ROOM_SETTINGS, roomPicture } from "./room.js?v=6";
 
 // ---------------------------------------------------------------- settings
 const CONFIG = {
@@ -41,10 +44,12 @@ const CONFIG = {
   dataPipeId: "",
   saveUrl: "",
   completionUrl: "",       // if set, a link back to the recruitment site is shown at the end
+  prolificCode: "",        // Prolific completion code; if set, the link back is https://app.prolific.com/submissions/complete?cc=CODE
   minFeatureViewMs: 5000,  // each options screen must be looked at for at least this long
   minRoomViewMs: 3000,     // each screen with room pictures must be looked at for at least this long
   // Tasks per block. To be fixed after the pilot (22 Oct). At most 4 single, 4 comparison, 8 feature.
-  counts: { single: 4, preference: 4, feature: 8 },
+  // 25 Nov (Zhi-Xuan): 4-4-4. With 4 feature tasks each feature is changed once (one of two balanced sets of rooms).
+  counts: { single: 4, preference: 4, feature: 4 },
   prefAlternatives: [1, 1, 2, 2],  // other rooms per comparison task: 1 = two rooms in all, 2 = three rooms
   featureStep3: "options",         // "options": the original room and each of the three options on its own;
                                    // "rooms": the original room and the three changed rooms in full
@@ -54,6 +59,7 @@ const CONFIG = {
   featureReminder: true,           // show all the options again before the feature tasks (29 Oct)
   blockOrder: "single,preference,feature",   // fixed order (17 Nov); "random" shuffles the blocks per participant
   optionCheck: true,               // after the options screens, name one option per feature
+  demographics: true,              // a short survey at the end: age, gender, ethnicity (25 Nov)
   rangeWording: "range",           // "range": lowest and highest you could end up giving; "90": 90% sure
   roomWindow: true,                // a window in the complete rooms (off 2-17 Nov; back on 17 Nov)
   roomExposure: 0.9,               // brightness of the rooms (29 Oct: too bright at 1)
@@ -102,6 +108,8 @@ function newId() {
 const SINGLE_ROOMS = ["1234", "2311", "4122", "3443"];   // 2 Nov: chosen so that no room appears in two tasks
 const PREF_ROOMS = ["4232", "3313", "1141", "2424"];
 const FEATURE_ROOMS = ["1223", "2431", "3312", "4144", "1442", "2214", "3133", "4321"];   // each option twice
+// The first four and the last four are each a balanced set: every option once, and the k-th room changes feature k.
+// With 4 feature tasks, one set is chosen at random per participant (25 Nov).
 
 // The room `code` moved on by `step` options in the features `feats` (0-based). Same as shift() in Julia.
 function change(code, feats, step) { return code.split("").map((d, f) => (feats.includes(f) ? String(((Number(d) - 1 + step) % 4) + 1) : d)).join(""); }
@@ -130,12 +138,14 @@ const roomOptions = (code) => Object.fromEntries(FEATURES.map((f, i) => [f, mapp
 
 // Blocks: one kind of task each, tasks in a random order within the block, blocks in a random order.
 const BLOCK_KINDS = ["single", "preference", "feature"];
+const featureSet = random() < 0.5 ? 0 : 1;
 function makeBlocks() {
   const n = (kind) => (DEBUG ? 1 : Number(params.get("tasks")) || CONFIG.counts[kind]);
   const tasks = {
     single: shuffle(SINGLE_ROOMS.map(singleQuery)).slice(0, n("single")),
     preference: shuffle(PREF_ROOMS.map(prefQuery)).slice(0, n("preference")),
-    feature: shuffle(FEATURE_ROOMS.map(featureQuery)).slice(0, n("feature")),
+    feature: n("feature") > 4 ? shuffle(FEATURE_ROOMS.map(featureQuery)).slice(0, n("feature"))
+      : shuffle(FEATURE_ROOMS.slice(4 * featureSet, 4 * featureSet + 4).map((code, t) => ({ ...featureQuery(code, t), design: 4 * featureSet + t + 1 }))).slice(0, n("feature")),
   };
   const order = ONLY ? ONLY.split(",").map((x) => x.trim())
     : CONFIG.blockOrder === "random" ? shuffle(BLOCK_KINDS) : CONFIG.blockOrder.split(",").map((x) => x.trim());
@@ -159,8 +169,8 @@ const data = {
   participant: params.get("PROLIFIC_PID") || params.get("pid") || newId(),
   urlParams: Object.fromEntries(params), userAgent: navigator.userAgent,
   startedAt: new Date().toISOString(), mapping,
-  blockOrder: blocks.map((b) => b.kind),
-  practice: null, check: [], features: [], optionCheck: [], reminders: [], events: [], records: [], comments: "", finishedAt: null,
+  blockOrder: blocks.map((b) => b.kind), featureSet,
+  practice: null, check: [], features: [], optionCheck: [], reminders: [], events: [], records: [], demographics: null, finishedAt: null,
 };
 const backupKey = `study1-${data.participant}`;
 function backup() { try { localStorage.setItem(backupKey, JSON.stringify(data)); } catch (e) { /* carry on */ } }
@@ -256,6 +266,10 @@ function rangeSlider({ question = "", hint = "" } = {}, onChange) {
     example(a, b) { setRange(a, b); node.classList.add("example"); readout.textContent = ""; },   // a fixed picture of a range
   };
 }
+// An earlier rating shown as a band on a scale that can't be changed (25 Nov, Zhi-Xuan: under the initial room).
+function ratingScale(r, label) {
+  const s = rangeSlider(); s.node.classList.add("static"); s.ref(r, label); return s.node;
+}
 const answered = (...s) => () => (s.every((x) => x.value() !== null) ? true : "Please answer every question by pressing on its line.");
 function describe(options, only = FEATURES) {
   return el("table", { class: "description" }, ...only.map((f) =>
@@ -281,11 +295,13 @@ const asRange = (v) => (v ? [v.low, v.high] : null);
 const remember = (room, v) => { if (v) lastAnswer[room] = v; return asRange(v); };
 
 // The room seen earlier in a task, kept on screen beside what comes next (29 Oct).
-function keptRoom(parent, code, label, note = "", { text = false } = {}) {
+// 25 Nov (Zhi-Xuan): the rating is shown as a band on a scale under the room, not on the new room's scale, so as
+// not to invite anchoring; text = true adds the room's description (task 1 only, where a similar room is read next).
+function keptRoom(parent, code, label, { text = false } = {}) {
   const box = el("div", { class: "kept" }, el("div", { class: "room-label", text: label }));
   picture(box, roomOptions(code)); if (text) box.append(describe(roomOptions(code)));
   const r = lastAnswer[code];
-  if (r) box.append(el("p", { class: "small", text: `${note || "You rated this room"} ${rangeText(r)}.` }));
+  if (r) box.append(ratingScale(r, "You rated this room"));
   parent.append(box); return box;
 }
 
@@ -299,7 +315,8 @@ async function welcome() {
   const card = newCard(); card.classList.add("welcome");   // centred on the page (20 Nov)
   // 20 Nov (Zhi-Xuan): a more informative title and a short motivation; consent is handled on Prolific.
   card.append(lead("Welcome to our study on how people learn their own preferences!"),
-    lead("In this study, we will show you descriptions and images of various rooms, and ask you to judge how much you like these rooms as more information about each room is provided. Remember: there are no right or wrong answers, we want your opinions."),
+    lead("In this study, we will show you descriptions and images of various rooms, and ask you to judge how much you like these rooms as more information about each room is provided. Please imagine each room as the living room of your own home. Remember: there are no right or wrong answers, we want your opinions."),
+    lead("The rooms are not chosen based on your answers, so you may see features you don't like more than once."),
     lead("The task should take about 15 minutes to complete. Before you begin, you will be asked to complete a short tutorial. Press next to continue!"));
   await nextButton(card, { label: "Next" });
 }
@@ -341,6 +358,11 @@ async function practice() {
   // Step 1: a description only.
   let t = tutCard("Using the slider");
   t.center.append(lead("Read the given description of a kitchen, and try to picture what it might look like."), exampleTable(KITCHEN));
+  // 25 Nov (Duy): say plainly what the scale and the two ends of the range mean, in short points.
+  t.center.append(el("ul", { class: "how" },
+    el("li", { text: "−50 means you strongly dislike it, +50 means you strongly like it, and 0 means you feel neutral." }),
+    el("li", { text: "Mark a range: the left end is the lowest rating you might give, the right end the highest." }),
+    el("li", { text: "If you are completely sure, mark a single point." })));
   const s1 = rangeSlider({ question: "How much do you think you would like this kitchen?",
     hint: "Give the lowest and highest rating you think you could end up giving it. Your range should be narrower if you’re sure about your response, and wider if you aren’t." });
   t.center.append(s1.node);
@@ -391,8 +413,8 @@ async function check() {
 }
 
 const PARTS = 1 + blocks.length;   // part 1: the options; then one part per block
-function optionGrid(parent, f, order) {
-  const grid = el("div", { class: "row-grid" }); parent.append(grid);
+function optionGrid(parent, f, order, cls = "row-grid") {
+  const grid = el("div", { class: cls }); parent.append(grid);
   for (const option of order) {
     const cell = el("div", {}); grid.append(cell);
     picture(cell, { feature: f, option });
@@ -409,7 +431,7 @@ async function features() {
     const card = tutCard("Room features").center;
     card.append(lead(`The four options for the ${FEATURE_NAMES[f].toLowerCase()} are shown below. The words accompanying each picture will be used to describe options in the study.`));
     const order = shuffle(LEVELS[f]);
-    optionGrid(card, f, order);
+    optionGrid(card, f, order, "row-grid two options");   // 2x2, larger pictures (25 Nov, Zhi-Xuan)
     const ms = await nextButton(card, { minMs: CONFIG.minFeatureViewMs });
     data.features.push({ feature: f, order, ms }); backup();
   }
@@ -445,7 +467,7 @@ async function optionCheck() {
     if (!wrong.length) return;
     const again = tutCard("Room features").center;
     again.append(lead(`Not quite. ${wrong.map((it) => `The ${FEATURE_NAMES[it.f].toLowerCase()} picture showed ${DESCRIPTIONS[it.option]}.`).join(" ")} Please look at the options again below; you will then be asked two new questions.`));
-    for (const it of wrong) { again.append(el("div", { class: "room-label", text: FEATURE_NAMES[it.f] })); optionGrid(again, it.f, LEVELS[it.f]); }
+    for (const it of wrong) { again.append(el("div", { class: "room-label", text: FEATURE_NAMES[it.f] })); optionGrid(again, it.f, LEVELS[it.f], "row-grid two options"); }
     await nextButton(again, { label: "Try again", minMs: CONFIG.minRoomViewMs });
   }
 }
@@ -489,7 +511,7 @@ async function rateNeighbours(q, where, ev, rows) {
       el("p", { class: "lead", text: "The initial room is shown on the left." }));
     questionOnce(card, Q.read);
     const grid = el("div", { class: "row-grid two" }); card.append(grid);
-    keptRoom(grid, q.shown[0], "Initial room").classList.add("cell");
+    keptRoom(grid, q.shown[0], "Initial room", { text: true }).classList.add("cell");
     const right = roomCell(grid, `New room (${i + 1} of ${order.length})`, textRoom(roomOptions(n)));
     const s = slider(right, n, { question: "", hint: "" });
     const ms = await nextButton(card, { ready: answered(s) });
@@ -576,6 +598,14 @@ async function preferenceTask(q, where) {
   record(ev, "preference", rows, rows[mids.indexOf(Math.max(...mids))].room, k + 1);   // picked: the one rated highest
 }
 
+// The initial room of a feature task, above the versions (picture only; 17 Nov).
+function initialTop(card, opts, rating) {
+  const top = el("div", { class: "original-top" }, el("div", { class: "room-label", text: "Initial room" }));
+  picture(top, opts);
+  top.append(el("p", { class: "small", text: `You rated this room ${rangeText(rating)}.` }));
+  card.append(top);
+}
+
 async function featureRooms(q, where) {
   const f = q.feature, fname = FEATURE_NAMES[f].toLowerCase(), fixed = FEATURES.filter((x) => x !== f);
   const base = q.base, baseOpts = roomOptions(base);
@@ -588,13 +618,17 @@ async function featureRooms(q, where) {
   // 2. Three versions with a different option for one feature, as text, with the room kept on screen.
   const ev = nextEvent(); viz?.goTo(ev, "before");
   let card = newCard(where, { wide: true });
-  card.append(el("p", { class: "lead", text: `Please read the descriptions of the three versions given below on the right. Each version is the initial room with different ${fname}; everything else stays exactly the same.` }),
-    el("p", { class: "lead", text: "The initial room is shown on the left." }));
-  // The initial room as a picture and the three versions as text cards of the same size, in one row (17 Nov).
+  // 25 Nov (Zhi-Xuan): the same layout as the next screen: the initial room on top, the three versions in a row
+  // below it, and the initial room's rating marked on each version's scale.
+  card.append(el("p", { class: "lead", text: `Please see the initial room shown below, and read the descriptions of the three versions below it.` }));
+  initialTop(card, baseOpts, baseRating);
+  card.append(el("p", { text: `Each version is the initial room with different ${fname}; everything else stays exactly the same.` }));
   questionOnce(card, Q.readVersions);
-  const row = el("div", { class: "row-grid" }); card.append(row);
-  keptRoom(row, base, "Initial room").classList.add("cell");
-  let sliders = versions.map((code, i) => slider(roomCell(row, `Version ${LETTERS[i]}`, textRoom(vOpts[i], [f])), code, { question: "", hint: "" }));
+  const row = el("div", { class: "row-grid three" }); card.append(row);
+  let sliders = versions.map((code, i) => {
+    const s = slider(roomCell(row, `Version ${LETTERS[i]}`, textRoom(vOpts[i], [f])), code, { question: "", hint: "" });
+    s.ref(baseRating, "Your rating of the initial room"); return s;
+  });
   const msBefore = await nextButton(card, { ready: answered(...sliders), label: "See them" });
   const before = sliders.map((s, i) => remember(versions[i], s.value()));
 
@@ -605,10 +639,7 @@ async function featureRooms(q, where) {
   const asOptions = CONFIG.featureStep3 === "options";
   card = newCard(where, { wide: true });
   card.append(el("p", { class: "lead", text: `Please see the initial room shown below, and the new ${fname} options below it.` }));
-  const top = el("div", { class: "original-top" }, el("div", { class: "room-label", text: "Initial room" }));
-  picture(top, baseOpts);
-  top.append(el("p", { class: "small", text: `You rated this room ${rangeText(baseRating)}.` }));   // picture only (17 Nov)
-  card.append(top);
+  initialTop(card, baseOpts, baseRating);
   card.append(el("p", { text: asOptions
     ? `Below, each picture shows only the new ${fname}, in the place it would be in the room. Imagine the room above with that ${fname} instead; everything else stays the same.`
     : `Each room below is the room above with different ${fname}.` }));
@@ -654,7 +685,7 @@ const BLOCK_INTRO = {
       total(n)] },
   feature: { title: "Changing one feature of a room",
     text: (n) => [STEPS, ["You will be shown a room and asked to rate it.",
-      "You will be asked to read about three versions of that room, each with one feature changed (for example, the lighting), and rate them.",
+      "You will be asked to read about three versions of that room, each with one feature changed (for example, the lighting), and rate them. The original room will remain on the screen as you complete this step.",
       "You will be shown each new option on its own, together with the original room, and asked to rate the versions again."],
       total(n)] },
 };
@@ -697,6 +728,34 @@ async function runBlocks() {
   document.title = TITLE;
 }
 
+// ---------------------------------------------------------------- demographics (25 Nov, Zhi-Xuan)
+// Age, gender (asked here, since Prolific's is binary) and ethnicity (Prolific's simplified categories), to check
+// that the sample is not badly skewed. Every question has a "prefer not to say".
+async function demographics() {
+  const card = newCard();
+  card.append(lead("Finally, please tell us a little about yourself. This is only used to describe the group of people who took part."));
+  const age = el("input", { type: "number", min: "18", max: "120", class: "age", "aria-label": "Age" });
+  const ageNo = el("input", { type: "checkbox" });
+  const radios = (name, options) => el("div", { class: "choices" }, ...options.map((o) => el("label", {}, el("input", { type: "radio", name, value: o }), ` ${o}`)));
+  const selfText = el("input", { type: "text", class: "self", "aria-label": "Gender, in your own words" });
+  const gender = radios("gender", ["Woman", "Man", "Non-binary", "Prefer to self-describe", "Prefer not to say"]);
+  gender.children[3].append(" ", selfText);
+  const eth = radios("ethnicity", ["Asian", "Black", "Mixed", "White", "Other", "Prefer not to say"]);
+  card.append(el("p", { class: "question", text: "1. What is your age?" }), el("div", { class: "choices" }, age, el("label", { class: "inline" }, ageNo, " Prefer not to say")),
+    el("p", { class: "question", text: "2. What is your gender?" }), gender,
+    el("p", { class: "question", text: "3. What is your ethnicity?" }), eth);
+  const pick = (name) => card.querySelector(`input[name=${name}]:checked`)?.value ?? null;
+  await nextButton(card, { label: "Finish", ready: () => {
+    const a = Number(age.value);
+    if (!ageNo.checked && !(a >= 18 && a <= 120)) return "Please give your age (or tick \"Prefer not to say\").";
+    if (!pick("gender") || !pick("ethnicity")) return "Please answer every question.";
+    return true;
+  } });
+  const g = pick("gender");
+  data.demographics = { age: ageNo.checked ? null : Number(age.value), gender: g === "Prefer to self-describe" ? `self: ${selfText.value.trim()}` : g, ethnicity: pick("ethnicity") };
+  backup();
+}
+
 // ---------------------------------------------------------------- saving
 // DataPipe (pipe.jspsych.org) stores one file per participant in an OSF project; saveUrl is any other endpoint.
 async function save() {
@@ -733,7 +792,29 @@ async function finish() {
     done.append(el("p", { class: "small", text: saved ? "(debug) Answers saved." : "(debug) Answers were not sent." }),
       el("a", { class: "button", href: URL.createObjectURL(file), download: `study1-${data.participant}.json`, text: "Download answers" }));
   }
-  if (CONFIG.completionUrl) done.append(el("p", {}, el("a", { href: CONFIG.completionUrl, text: "Click here to complete the study." })));
+  const back = CONFIG.prolificCode ? `https://app.prolific.com/submissions/complete?cc=${CONFIG.prolificCode}` : CONFIG.completionUrl;
+  if (back) done.append(el("p", {}, el("a", { class: "button", href: back, text: "Return to Prolific" })));
+  favourites(done);
+}
+
+// The end screen (25 Nov, Duy): the options this person seems to like best, from their own ratings. For each feature,
+// the option whose rooms got the highest average rating (middle of the range); then a picture of that room.
+function favourites(card) {
+  const sum = {}, n = {};
+  for (const [code, r] of Object.entries(lastAnswer)) {
+    const mid = (r.low + r.high) / 2, opts = roomOptions(code);
+    for (const f of FEATURES) { const o = opts[f]; sum[o] = (sum[o] ?? 0) + mid; n[o] = (n[o] ?? 0) + 1; }
+  }
+  const best = {};
+  for (const f of FEATURES) {
+    const rated = LEVELS[f].filter((o) => n[o]);
+    if (!rated.length) return;
+    best[f] = rated.reduce((a, b) => (sum[b] / n[b] > sum[a] / n[a] ? b : a));
+  }
+  card.append(el("h2", { class: "fav-title", text: "Your room" }),
+    el("p", { text: "From your ratings, this is our best guess at the room you would like most:" }));
+  picture(card, best);
+  card.append(describe(best));
 }
 
 // ---------------------------------------------------------------- run
@@ -753,4 +834,5 @@ if (FULL) {
   if (CONFIG.optionCheck) await optionCheck();
 }
 await runBlocks();
+if (CONFIG.demographics) await demographics();
 await finish();

@@ -61,13 +61,14 @@ export class Room {
     this.white = new THREE.MeshStandardMaterial({ color: 0xf2efe9 });
     this.dark = new THREE.MeshStandardMaterial({ color: 0x343637 });
     this.fixed = new THREE.Group();       // floor, walls and ceiling
-    this.props = new THREE.Group();       // the rug and the coffee table
+    this.props = new THREE.Group();       // the rug
+    this.table = new THREE.Group();       // the coffee table (hidden with four armchairs, which have their own table)
     this.win = new THREE.Group();         // the window
     this.furn = new THREE.Group();
     this.fx = new THREE.Group();
     this.dec = new THREE.Group();
     this.lit = new THREE.Group();
-    this.s.add(this.fixed, this.props, this.win, this.furn, this.fx, this.dec, this.lit);
+    this.s.add(this.fixed, this.props, this.table, this.win, this.furn, this.fx, this.dec, this.lit);
     this.build();
     this.s.add(new THREE.HemisphereLight(0xfff4dc, 0x66717a, 0.52));
     this.observer = new ResizeObserver(() => this.resize());
@@ -88,16 +89,23 @@ export class Room {
     this.sides = [this.box(0.14, 5.8, 9, this.wall, -6.5, 2.9, -0.4), this.box(0.14, 5.8, 9, this.wall, 6.5, 2.9, -0.4)];
     this.ceiling = this.box(13, 0.14, 9, this.ceilMat, 0, 5.8, -0.4);
     this.fixed.add(this.floor, this.back, ...this.sides, this.ceiling);
-    this.props.add(this.box(6.8, 0.03, 4.4, new THREE.MeshStandardMaterial({ color: 0xc6b79f }), 0, 0.09, -0.1), this.box(2.3, 0.18, 1.15, this.wood, 0, 0.62, 0.45));
-    for (const x of [-0.92, 0.92]) for (const z of [0.05, 0.85]) this.props.add(this.box(0.12, 0.55, 0.12, this.wood, x, 0.32, z));
-    this.win.add(this.box(3.35, 2.85, 0.1, this.wood, -3.85, 3.05, -4.77), this.box(2.98, 1.62, 0.025, new THREE.MeshStandardMaterial({ color: 0x8fc4dc }), -3.85, 3.48, -4.73), this.box(2.98, 0.82, 0.025, new THREE.MeshStandardMaterial({ color: 0x718d5d }), -3.85, 2.26, -4.72), this.box(0.07, 2.48, 0.05, this.white, -3.85, 3.05, -4.56), this.box(2.98, 0.07, 0.05, this.white, -3.85, 3.05, -4.56));
+    this.props.add(this.box(6.8, 0.03, 4.4, new THREE.MeshStandardMaterial({ color: 0xc6b79f }), 0, 0.09, -0.1));
+    this.table.add(this.box(2.3, 0.18, 1.15, this.wood, 0, 0.62, 0.45));
+    for (const x of [-0.92, 0.92]) for (const z of [0.05, 0.85]) this.table.add(this.box(0.12, 0.55, 0.12, this.wood, x, 0.32, z));
+    // The window (26 Nov, Duy): a night sky with a few stars, so it never looks like a source of daylight the room
+    // doesn't get. Unlit materials, so the room's own lights don't brighten the view outside.
+    const sky = new THREE.MeshBasicMaterial({ color: 0x141c33 }), ground = new THREE.MeshBasicMaterial({ color: 0x0b0f14 });
+    const star = new THREE.MeshBasicMaterial({ color: 0xf4f1e2 });
+    this.win.add(this.box(3.35, 2.85, 0.1, this.wood, -3.85, 3.05, -4.77), this.box(2.98, 1.62, 0.025, sky, -3.85, 3.48, -4.73), this.box(2.98, 0.82, 0.025, ground, -3.85, 2.26, -4.72), this.box(0.07, 2.48, 0.05, this.white, -3.85, 3.05, -4.56), this.box(2.98, 0.07, 0.05, this.white, -3.85, 3.05, -4.56));
+    for (const [x, y, r] of [[-4.95, 4.05, 0.03], [-4.55, 3.55, 0.022], [-4.1, 4.2, 0.026], [-3.55, 3.75, 0.02], [-3.15, 4.1, 0.03], [-2.75, 3.4, 0.022], [-4.75, 3.25, 0.018], [-3.35, 3.3, 0.018], [-2.6, 4.0, 0.02]])
+      this.win.add(this.box(r * 2, r * 2, 0.01, star, x, y, -4.715));
   }
 
   // Back to a complete room: every surface and prop in its usual colour.
   whole() {
     for (const m of [this.floor, this.back, ...this.sides, this.ceiling]) m.visible = true;
     this.floorMat.color.setHex(0x815d43); this.ceilMat.color.setHex(0xf2efe9);
-    this.props.visible = true; this.win.visible = ROOM_SETTINGS.window;
+    this.props.visible = true; this.table.visible = true; this.win.visible = ROOM_SETTINGS.window;
     this.s.background.setHex(0xe7e3dc);
     if (this.fill) this.fill.visible = false;
   }
@@ -118,7 +126,9 @@ export class Room {
 
   setF(t) {
     this.clear(this.furn);
-    if (t === "connected-l") this.furn.add(this.box(5.85, 0.5, 1.18, this.fabric, 0.55, 0.58, -2.55), this.box(1.2, 0.5, 3.15, this.fabric, -1.78, 0.58, -1.55), this.box(5.85, 0.82, 0.22, this.fabric, 0.55, 1.15, -3.03), this.box(0.22, 0.82, 2.95, this.fabric, -2.32, 1.15, -1.57));
+    this.table.visible = this.props.visible && t !== "four-armchairs";   // four armchairs come with their own round table (26 Nov)
+    // L-shaped sofa centred on the rug (26 Nov: it ran past the rug's right edge).
+    if (t === "connected-l") this.furn.add(this.box(5.85, 0.5, 1.18, this.fabric, 0, 0.58, -2.55), this.box(1.2, 0.5, 3.15, this.fabric, -2.33, 0.58, -1.55), this.box(5.85, 0.82, 0.22, this.fabric, 0, 1.15, -3.03), this.box(0.22, 0.82, 2.95, this.fabric, -2.87, 1.15, -1.57));
     if (t === "sofa-chairs") { this.sofa(0, -2.55, 3.55); this.chair(-3, -0.35, Math.PI / 3); this.chair(3, -0.35, -Math.PI / 3); }
     if (t === "sofa-beanbag") { this.sofa(-0.65, -2.55, 3.25); this.beanbag(2.75, -0.35); }
     if (t === "four-armchairs") { this.chair(-2.1, -1.85, Math.PI / 4); this.chair(2.1, -1.85, -Math.PI / 4); this.chair(-2.1, 1.05, Math.PI * 0.72); this.chair(2.1, 1.05, -Math.PI * 0.72); this.furn.add(this.cyl(0.68, 0.1, this.wood, 0, 0.58, -0.25), this.cyl(0.1, 0.54, this.wood, 0, 0.3, -0.25)); }
@@ -245,7 +255,7 @@ export class Room {
   // sink and light are plain and are not described.
   kitchen() {
     this.whole(); this.clear(this.furn); this.clear(this.dec); this.clear(this.lit); this.clear(this.fx);
-    this.props.visible = false; this.win.visible = true;
+    this.props.visible = false; this.table.visible = false; this.win.visible = true;
     this.wall.color.setHex(0xf0e9de); this.floorMat.color.setHex(0xc9a578); this.ceilMat.color.setHex(0xf6f3ee);
     const M = (color, roughness = 0.6, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness });
     const red = M(0xa8322d, 0.5), gap = M(0x6e1f1c, 0.7), top = M(0xf3f1ec, 0.25), steel = M(0xc4c7ca, 0.3, 0.7);
@@ -297,7 +307,7 @@ export class Room {
       this.fill.add(new THREE.AmbientLight(0xffffff, 1.7), front);
       this.s.add(this.fill);
     }
-    this.props.visible = false; this.win.visible = false;
+    this.props.visible = false; this.table.visible = false; this.win.visible = false;
     this.fill.visible = feature !== "lighting";   // lighting options are shown by their own light
     // The same empty grey room for every feature (2 Nov): grey floor, ceiling and walls (the walls' own colour
     // when the option is a kind of wall), so the four features look alike apart from the option itself.

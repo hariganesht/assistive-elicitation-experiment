@@ -204,3 +204,29 @@ ol.points > li::before{content:counter(pt);position:absolute;left:0;top:-1px;wid
 .tut-center .choices .room-view{max-width:480px}
 @media(max-width:1000px){.tut{grid-template-columns:1fr;gap:16px}.tut-side{order:-1}}
 .tip{}
+
+/* 25 Nov (Zhi-Xuan, Duy) */
+/* Wider pages on wide screens, so rows of three scales aren't squeezed. */
+main{width:min(1400px,100%)}
+/* The tutorial's options: 2x2, larger pictures. */
+.row-grid.two.options{gap:14px 22px}
+.row-grid.two.options .room-view{margin:4px 0 6px}
+/* An earlier rating shown as a band on a scale that can't be changed. */
+.range.static{pointer-events:none;margin:12px 0 0}
+.range.static .readout{display:none}
+.range.static .ref{top:13px;height:10px;border-radius:5px;opacity:1}
+.range.static .ref-text{margin-top:2px}
+.kept table.description{margin-top:2px}
+/* The slider explained in short points (tutorial). */
+ul.how{margin:6px 0 4px;padding-left:20px}
+ul.how li{margin-bottom:4px}
+/* Demographics. */
+input.age{width:90px;font:inherit;padding:4px 6px;margin-right:18px}
+input.self{font:inherit;padding:2px 6px;width:200px}
+label.inline{display:inline}
+.fav-title{margin-top:28px}
+/* Task pages: less space above, and pictures capped, so most screens fit without scrolling. */
+.card.wide:not(:has(.tut)){margin-top:max(0px,calc(8vh - 40px))}
+.row-grid.two:not(.options) .room-view{max-width:560px}
+.original-top{width:min(460px,100%)}
+.row-grid.three .room-view{max-width:380px;margin-left:auto;margin-right:auto}
