@@ -5,7 +5,7 @@
 //        -> the options, one screen per feature (4 options each) -> a short check on the options
 //        -> three blocks, in a random order (one kind of task per block):
 //             single rooms   rate from text -> see the room, rate again -> rate 4 similar rooms from text
-//                            (sharing 3, 2, 1 and 0 options with it), with the room seen kept on screen
+//                            (25 Nov: each with one feature changed), with the room seen kept on screen
 //             comparisons    see a room, rate it -> read 1 or 2 other rooms, rate them (the first room on screen)
 //                            -> see them all, including the first room again, rate them again
 //             feature tasks  (a reminder of all the options first; 4 tasks, one per feature, 25 Nov)
@@ -53,8 +53,9 @@ const CONFIG = {
   prefAlternatives: [1, 1, 2, 2],  // other rooms per comparison task: 1 = two rooms in all, 2 = three rooms
   featureStep3: "options",         // "options": the original room and each of the three options on its own;
                                    // "rooms": the original room and the three changed rooms in full
-  similarRooms: [3, 2, 0],         // after a single room, similar rooms sharing these numbers of options with it
-                                   // (29 Oct: fewer, so as not to tire people; [3, 2, 1, 0] for all four)
+  similarRooms: [3, 3, 3],         // after a single room, similar rooms sharing these numbers of options with it.
+                                   // 25 Nov: all three share 3, i.e. one feature changed (each a different
+                                   // feature). Before: [3, 2, 0] (29 Oct), [3, 2, 1, 0] for the fall-off with sharing.
   featurePick: false,              // feature tasks end with "which do you like best?" (dropped 2 Nov)
   featureReminder: true,           // show all the options again before the feature tasks (29 Oct)
   blockOrder: "single,preference,feature",   // fixed order (17 Nov); "random" shuffles the blocks per participant
@@ -116,8 +117,15 @@ function change(code, feats, step) { return code.split("").map((d, f) => (feats.
 const shared = (a, b) => [...a].filter((d, i) => d === b[i]).length;
 
 // Tasks in design order. t is 0-based.
+// One-feature neighbours: the k-th changes feature f + k, by NEIGHBOUR_STEP[t] options (steps chosen so that no
+// neighbour is a room used in another task). Across the 4 single rooms each feature is changed 3 times.
+const NEIGHBOUR_STEP = [1, 1, 1, 2];
 function singleQuery(code, t) {
   const f = t % 4, g = (k) => (f + k) % 4;
+  if (CONFIG.similarRooms.every((n) => n === 3)) {
+    const neighbours = CONFIG.similarRooms.map((_, k) => change(code, [g(k)], NEIGHBOUR_STEP[t]));
+    return { kind: "single", design: t + 1, shown: [code], neighbours };
+  }
   const all = [change(code, [f], 1), change(code, [g(1), g(2)], 2), change(code, [f, g(1), g(2)], 3), change(code, [0, 1, 2, 3], 2)];
   return { kind: "single", design: t + 1, shown: [code], neighbours: all.filter((n) => CONFIG.similarRooms.includes(shared(n, code))) };
 }
@@ -676,7 +684,7 @@ const STEPS = "In each iteration of this task, there are STEPS to follow:";
 const BLOCK_INTRO = {
   single: { title: "Observing individual rooms",
     text: (n) => [STEPS, ["You will be asked to read a description of a room and rate it. Following this, you will be shown the actual room, and asked to rate it again.",
-      "You will be asked to read descriptions of a few other rooms and rate each of them. The original room will remain on the screen as you complete this step."],
+      "You will be asked to read descriptions of a few other rooms, each the same as the original room except for one feature, and rate each of them. The original room will remain on the screen as you complete this step."],
       total(n)] },
   preference: { title: "Comparing rooms",
     text: (n) => [STEPS, ["You will be shown a room and asked to rate it.",
