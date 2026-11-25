@@ -5,7 +5,7 @@
 //        -> the options, one screen per feature (4 options each) -> a short check on the options
 //        -> three blocks, in a random order (one kind of task per block):
 //             single rooms   rate from text -> see the room, rate again -> rate 4 similar rooms from text
-//                            (25 Nov: each with one feature changed), with the room seen kept on screen
+//                            (sharing 3, 2 and 0 options with it), with the room seen kept on screen
 //             comparisons    see a room, rate it -> read 1 or 2 other rooms, rate them (the first room on screen)
 //                            -> see them all, including the first room again, rate them again
 //             feature tasks  (a reminder of all the options first; 4 tasks, one per feature, 25 Nov)
@@ -53,9 +53,9 @@ const CONFIG = {
   prefAlternatives: [1, 1, 2, 2],  // other rooms per comparison task: 1 = two rooms in all, 2 = three rooms
   featureStep3: "options",         // "options": the original room and each of the three options on its own;
                                    // "rooms": the original room and the three changed rooms in full
-  similarRooms: [3, 3, 3],         // after a single room, similar rooms sharing these numbers of options with it.
-                                   // 25 Nov: all three share 3, i.e. one feature changed (each a different
-                                   // feature). Before: [3, 2, 0] (29 Oct), [3, 2, 1, 0] for the fall-off with sharing.
+  similarRooms: [3, 2, 0],         // after a single room, similar rooms sharing these numbers of options with it.
+                                   // (29 Oct: fewer, so as not to tire people; [3, 2, 1, 0] for all four;
+                                   // [3, 3, 3] for three rooms with one feature changed each, tried 25 Nov)
   featurePick: false,              // feature tasks end with "which do you like best?" (dropped 2 Nov)
   featureReminder: true,           // show all the options again before the feature tasks (29 Oct)
   blockOrder: "single,preference,feature",   // fixed order (17 Nov); "random" shuffles the blocks per participant
@@ -368,11 +368,10 @@ async function practice() {
   t.center.append(lead("Read the given description of a kitchen, and try to picture what it might look like."), exampleTable(KITCHEN));
   // 25 Nov (Duy): say plainly what the scale and the two ends of the range mean, in short points.
   t.center.append(el("ul", { class: "how" },
-    el("li", { text: "−50 means you strongly dislike it, +50 means you strongly like it, and 0 means you feel neutral." }),
-    el("li", { text: "Mark a range: the left end is the lowest rating you might give, the right end the highest." }),
-    el("li", { text: "If you are completely sure, mark a single point." })));
-  const s1 = rangeSlider({ question: "How much do you think you would like this kitchen?",
-    hint: "Give the lowest and highest rating you think you could end up giving it. Your range should be narrower if you’re sure about your response, and wider if you aren’t." });
+    el("li", { text: "−50 is strongly dislike, 0 is neutral, +50 is strongly like." }),
+    el("li", { text: "Mark the lowest and highest rating you think you could end up giving." }),
+    el("li", { text: "Narrower if you’re sure (a single point if completely sure), wider if you aren’t." })));
+  const s1 = rangeSlider({ question: "How much do you think you would like this kitchen?" });   // the points above say how (25 Nov)
   t.center.append(s1.node);
   const ms1 = await nextButton(t.col, { ready: answered(s1) });
   const first = s1.value();
@@ -684,7 +683,7 @@ const STEPS = "In each iteration of this task, there are STEPS to follow:";
 const BLOCK_INTRO = {
   single: { title: "Observing individual rooms",
     text: (n) => [STEPS, ["You will be asked to read a description of a room and rate it. Following this, you will be shown the actual room, and asked to rate it again.",
-      "You will be asked to read descriptions of a few other rooms, each the same as the original room except for one feature, and rate each of them. The original room will remain on the screen as you complete this step."],
+      "You will be asked to read descriptions of a few other rooms and rate each of them. The original room will remain on the screen as you complete this step."],
       total(n)] },
   preference: { title: "Comparing rooms",
     text: (n) => [STEPS, ["You will be shown a room and asked to rate it.",
