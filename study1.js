@@ -346,12 +346,12 @@ const KITCHEN = [["Cabinets", "red cabinets"], ["Island", "a white marble island
 const exampleTable = (rows) => el("table", { class: "description" }, ...rows.map(([k, v]) => el("tr", {}, el("th", { text: k }), el("td", { text: v }))));
 // Tutorial pages (20 Nov), laid out like the Block Words tutorial: "Tutorial" on the left, the example in the
 // middle with the Next button under it, and the explanation on the right in short paragraphs.
-function tutCard(step) {
+function tutCard(step, head = "Tutorial:") {
   // "Tutorial" on the left, the example on the right (20 Nov: no boxes, no separate instructions column; the
   // tutorial's own advice is written into the example in colour).
   const card = newCard(null, { wide: true });
   const center = el("div", { class: "tut-center" });
-  card.append(el("div", { class: "tut" }, el("div", { class: "tut-title" }, el("div", { text: "Tutorial:" }), el("div", { class: "tut-section", text: step })), center));
+  card.append(el("div", { class: "tut" }, el("div", { class: "tut-title" }, el("div", { text: head }), el("div", { class: "tut-section", text: step })), center));
   return { center, col: center };
 }
 // Adds tutorial advice, in colour, after the slider's subtitle.
@@ -365,12 +365,14 @@ async function practice() {
   // Step 1: a description only.
   let t = tutCard("Using the slider");
   t.center.append(lead("Read the given description of a kitchen, and try to picture what it might look like."), exampleTable(KITCHEN));
-  // 25 Nov (Duy): say plainly what the scale and the two ends of the range mean, in short points.
-  t.center.append(el("ul", { class: "how" },
+  // 25 Nov (Duy): say plainly what the scale and the two ends of the range mean, in short points; 26 Nov: under
+  // the question, in place of the subtitle.
+  const how = (el("ul", { class: "how" },
     el("li", { text: "−50 is strongly dislike, 0 is neutral, +50 is strongly like." }),
     el("li", { text: "Mark the lowest and highest rating you think you could end up giving." }),
     el("li", { text: "Narrower if you’re sure (a single point if completely sure), wider if you aren’t." })));
-  const s1 = rangeSlider({ question: "How much do you think you would like this kitchen?" });   // the points above say how (25 Nov)
+  const s1 = rangeSlider({ question: "How much do you think you would like this kitchen?" });
+  s1.node.querySelector(".question").after(how);
   t.center.append(s1.node);
   const ms1 = await nextButton(t.col, { ready: answered(s1) });
   const first = s1.value();
@@ -390,8 +392,10 @@ async function practice() {
 function questionsCard(card, items) {
   const groups = items.map((item, i) => {
     const box = el("div", { class: "choices" }, el("p", { class: "question", text: `${i + 1}. ${item.q}` }));
-    if (item.picture) picture(box, item.picture);
-    item.a.forEach((txt, j) => box.append(el("label", {}, el("input", { type: "radio", name: `q${i}`, value: String(j) }), ` ${txt}`)));
+    const answers = el("div", { class: "answers" });
+    item.a.forEach((txt, j) => answers.append(el("label", {}, el("input", { type: "radio", name: `q${i}`, value: String(j) }), ` ${txt}`)));
+    if (item.picture) { const row = el("div", { class: "pic-answers" }); picture(row, item.picture); row.append(answers); box.append(row); }   // 26 Nov: side by side, no scrolling
+    else box.append(answers);
     return box;
   });
   const pick = (i) => { const c = groups[i].querySelector("input:checked"); return c ? Number(c.value) : null; };
@@ -430,7 +434,8 @@ function optionGrid(parent, f, order, cls = "row-grid") {
 async function features() {
   const intro = tutCard("Room features");
   intro.center.append(lead("Each room shown in this study has four features: the furniture, the lighting, the walls and the decor."),
-    lead("Each feature has four options. You will now be shown each of these options as they would look in an otherwise empty room. Afterwards, you will be asked two questions about them."));
+    lead("Each feature has four options. You will now be shown each of these options as they would look in an otherwise empty room."),
+    lead("Afterwards, you will be asked two questions about them."));
   await nextButton(intro.col);
   for (const [i, f] of shuffle(FEATURES).entries()) {
     setProgress(0.03 + 0.1 * (i / 4));
@@ -695,7 +700,17 @@ const BLOCK_INTRO = {
       "You will be shown each new option on its own, together with the original room, and asked to rate the versions again."],
       total(n)] },
 };
-// A pop-up over the page (17 Nov): the introduction to each task.
+// The introduction to each task (26 Nov): a page laid out like the tutorial ("Task 1:" and its name on the left),
+// instead of a pop-up. Same text as the pop-up had.
+async function taskIntro(head, title, paragraphs) {
+  const t = tutCard(title, head);
+  t.center.parentElement.classList.add("task-intro");   // long task names wrap onto a second line
+  t.center.append(...paragraphs.map((x, k) => Array.isArray(x)
+    ? el("ol", { class: "steps" }, ...x.map((y) => el("li", { text: y })))
+    : lead(x === STEPS ? STEPS.replace("STEPS", STEPS_N[paragraphs[k + 1].length]) : x)));
+  await nextButton(t.col, { label: "Start" });
+}
+// A pop-up over the page (17 Nov): now only between iterations.
 function popup(title, paragraphs, label = "Start") {
   screenEl.replaceChildren(); if (!VIZ) window.scrollTo(0, 0);
   const button = el("button", { class: "button", text: label });
@@ -716,7 +731,7 @@ async function runBlocks() {
   for (const [bi, b] of blocks.entries()) {
     const part = `Task ${bi + 1} of ${blocks.length}: ${BLOCK_INTRO[b.kind].title}`;
     document.title = `Task ${bi + 1} | ${TITLE}`;
-    await popup(`Task ${bi + 1}: ${BLOCK_INTRO[b.kind].title}`, BLOCK_INTRO[b.kind].text(b.tasks.length));
+    await taskIntro(`Task ${bi + 1}:`, BLOCK_INTRO[b.kind].title, BLOCK_INTRO[b.kind].text(b.tasks.length));
     if (b.kind === "feature" && CONFIG.featureReminder) await reminder(part);
     for (const [i, q] of b.tasks.entries()) {
       const where = `${part} (iteration ${i + 1} of ${b.tasks.length})`;

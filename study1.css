@@ -230,3 +230,11 @@ label.inline{display:inline}
 .row-grid.two:not(.options) .room-view{max-width:560px}
 .original-top{width:min(460px,100%)}
 .row-grid.three .room-view{max-width:380px;margin-left:auto;margin-right:auto}
+/* 26 Nov: option questions with the picture beside the answers, so the page fits without scrolling. */
+.pic-answers{display:grid;grid-template-columns:minmax(0,320px) 1fr;gap:24px;align-items:center}
+.pic-answers .room-view{margin:0}
+.tut-center .choices .room-view{max-width:320px}
+.range ul.how{margin:2px 0 0;color:var(--muted)}
+@media(max-width:600px){.pic-answers{grid-template-columns:1fr}}
+.task-intro .tut-title .tut-section{white-space:normal}
+.tut{grid-template-columns:240px minmax(0,780px)}
